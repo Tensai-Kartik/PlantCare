@@ -1,0 +1,167 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-primary: #f8faf9;
+    --bg-surface: #ffffff;
+    --bg-surface-elevated: #f1f5f3;
+    --bg-surface-subtle: #f4f8f5;
+    --text-primary: #13241b;
+    --text-secondary: #4a6356;
+    --text-muted: #738c7f;
+    --border-subtle: #e1eae4;
+    --border-strong: #c8dcce;
+    --accent-emerald: #16a34a;
+    --accent-emerald-light: #22c55e;
+    --accent-emerald-subtle: #dcfce7;
+    --accent-emerald-dark: #15803d;
+    --card-shadow: 0 4px 20px -2px rgba(22, 163, 74, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+    --card-shadow-hover: 0 12px 30px -4px rgba(22, 163, 74, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.06);
+  }
+
+  .dark {
+    --bg-primary: #000000;
+    --bg-surface: #0f0f12;
+    --bg-surface-elevated: #18181b;
+    --bg-surface-subtle: #1f1f23;
+    --text-primary: #f4f4f5;
+    --text-secondary: #a1a1aa;
+    --text-muted: #71717a;
+    --border-subtle: #27272a;
+    --border-strong: #3f3f46;
+    --accent-emerald: #22c55e;
+    --accent-emerald-light: #4ade80;
+    --accent-emerald-subtle: #064e3b;
+    --accent-emerald-dark: #16a34a;
+    --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.7), 0 2px 6px -1px rgba(0, 0, 0, 0.5);
+    --card-shadow-hover: 0 12px 30px -4px rgba(0, 0, 0, 0.85), 0 4px 12px -2px rgba(0, 0, 0, 0.6);
+  }
+
+  * {
+    border-color: var(--border-subtle);
+  }
+
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+  }
+}
+
+/* Custom Botanical Utility Styles */
+.bg-surface {
+  background-color: var(--bg-surface);
+}
+
+.bg-surface-elevated {
+  background-color: var(--bg-surface-elevated);
+}
+
+.bg-surface-subtle {
+  background-color: var(--bg-surface-subtle);
+}
+
+.text-primary-color {
+  color: var(--text-primary);
+}
+
+.text-secondary-color {
+  color: var(--text-secondary);
+}
+
+.text-muted-color {
+  color: var(--text-muted);
+}
+
+.border-subtle {
+  border-color: var(--border-subtle);
+}
+
+.border-strong {
+  border-color: var(--border-strong);
+}
+
+.custom-shadow {
+  box-shadow: var(--card-shadow);
+}
+
+.custom-shadow-hover:hover {
+  box-shadow: var(--card-shadow-hover);
+}
+
+/* Glassmorphism */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dark .glass-panel {
+  background: rgba(15, 15, 18, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Heatmap Gradient Legend */
+.heatmap-gradient-bar {
+  background: linear-gradient(to bottom, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Pulse animation for AI inference */
+@keyframes botanical-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.02);
+  }
+}
+
+.animate-botanical-pulse {
+  animation: botanical-pulse 3s ease-in-out infinite;
+}
+
+/* Print Stylesheet for Diagnostic Report Export */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print, aside, header, nav, button {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .custom-shadow, .shadow-lg {
+    box-shadow: none !important;
+  }
+  .glass-panel {
+    background: white !important;
+    backdrop-filter: none !important;
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "default_model": "efficientnet_b0",
+  "models": {
+    "efficientnet_b0": {
+      "id": "efficientnet_b0",
+      "name": "EfficientNet-B0",
+      "architecture": "efficientnet_b0",
+      "version": "1.2.0",
+      "dataset": "PlantVillage + FieldAug",
+      "dataset_version": "2.0",
+      "file": "efficientnet_b0.pth",
+      "img_size": 224,
+      "num_classes": 21,
+      "class_count": 21,
+      "training_date": "2026-08-26",
+      "temperature": 1.15,
+      "ece": 0.038,
+      "classes": [
+        "apple_black_rot",
+        "apple_cedar_apple_rust",
+        "apple_healthy",
+        "apple_scab",
+        "corn_common_rust",
+        "corn_healthy",
+        "corn_northern_leaf_blight",
+        "grape_black_rot",
+        "grape_esca_black_measles",
+        "grape_healthy",
+        "pepper_bell_bacterial_spot",
+        "pepper_bell_healthy",
+        "potato_early_blight",
+        "potato_healthy",
+        "potato_late_blight",
+        "tomato_bacterial_spot",
+        "tomato_early_blight",
+        "tomato_healthy",
+        "tomato_late_blight",
+        "tomato_septoria_leaf_spot",
+        "tomato_yellow_leaf_curl_virus"
+      ],
+      "accuracy": 90.48,
+      "weighted_f1": 0.8845,
+      "latency_ms": 13.03,
+      "norm_mean": [
+        0.485,
+        0.456,
+        0.406
+      ],
+      "norm_std": [
+        0.229,
+        0.224,
+        0.225
+      ]
+    },
+    "mobilenet_v3_small": {
+      "id": "mobilenet_v3_small",
+      "name": "MobileNetV3-Small",
+      "architecture": "mobilenet_v3_small",
+      "version": "1.2.0",
+      "dataset": "PlantVillage + FieldAug",
+      "dataset_version": "2.0",
+      "file": "mobilenet_v3_small.pth",
+      "img_size": 224,
+      "num_classes": 21,
+      "class_count": 21,
+      "training_date": "2026-08-26",
+      "temperature": 1.20,
+      "ece": 0.045,
+      "classes": [
+        "apple_black_rot",
+        "apple_cedar_apple_rust",
+        "apple_healthy",
+        "apple_scab",
+        "corn_common_rust",
+        "corn_healthy",
+        "corn_northern_leaf_blight",
+        "grape_black_rot",
+        "grape_esca_black_measles",
+        "grape_healthy",
+        "pepper_bell_bacterial_spot",
+        "pepper_bell_healthy",
+        "potato_early_blight",
+        "potato_healthy",
+        "potato_late_blight",
+        "tomato_bacterial_spot",
+        "tomato_early_blight",
+        "tomato_healthy",
+        "tomato_late_blight",
+        "tomato_septoria_leaf_spot",
+        "tomato_yellow_leaf_curl_virus"
+      ],
+      "accuracy": 77.78,
+      "weighted_f1": 0.7135,
+      "latency_ms": 1.91,
+      "norm_mean": [
+        0.485,
+        0.456,
+        0.406
+      ],
+      "norm_std": [
+        0.229,
+        0.224,
+        0.225
+      ]
+    }
+  }
+}

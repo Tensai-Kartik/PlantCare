@@ -1,0 +1,50 @@
+{
+  "model_name": "efficientnet_b0",
+  "standard_dataset_accuracy_percent": 90.48,
+  "real_world_validation_accuracy_percent": 67.14,
+  "performance_gap_percent": 23.34,
+  "scenario_breakdown": {
+    "clean_standard": {
+      "scenario_name": "Standard Clean Test Set",
+      "accuracy_percent": 90.48,
+      "weighted_f1": 0.8845,
+      "mean_confidence_percent": 85.41,
+      "total_samples": 126
+    },
+    "harsh_sunlight": {
+      "scenario_name": "Harsh Field Sunlight & Specular Glare",
+      "accuracy_percent": 65.87,
+      "weighted_f1": 0.5987,
+      "mean_confidence_percent": 85.26,
+      "total_samples": 126
+    },
+    "dim_shade": {
+      "scenario_name": "Low-Light Shaded Canopy",
+      "accuracy_percent": 41.27,
+      "weighted_f1": 0.3083,
+      "mean_confidence_percent": 68.72,
+      "total_samples": 126
+    },
+    "soil_background_clutter": {
+      "scenario_name": "Cluttered Soil / Mulch Background",
+      "accuracy_percent": 72.22,
+      "weighted_f1": 0.6613,
+      "mean_confidence_percent": 80.78,
+      "total_samples": 126
+    },
+    "partial_leaf": {
+      "scenario_name": "Partial / Offset Leaf Framing",
+      "accuracy_percent": 84.13,
+      "weighted_f1": 0.8115,
+      "mean_confidence_percent": 84.3,
+      "total_samples": 126
+    },
+    "camera_shake_blur": {
+      "scenario_name": "Field Handheld Camera Motion Blur",
+      "accuracy_percent": 72.22,
+      "weighted_f1": 0.6693,
+      "mean_confidence_percent": 79.0,
+      "total_samples": 126
+    }
+  }
+}

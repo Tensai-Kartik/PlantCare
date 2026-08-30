@@ -1,0 +1,78 @@
+{
+  "model_name": "efficientnet_b0",
+  "samples_tested": 50,
+  "overall_stability_score_percent": 70.8,
+  "mean_confidence_drop_percent": 2.98,
+  "perturbation_details": {
+    "brightness_down": {
+      "label": "Brightness Reduction (-40%)",
+      "prediction_stability_rate_percent": 64.0,
+      "baseline_mean_confidence_percent": 83.81,
+      "perturbed_mean_confidence_percent": 84.03,
+      "confidence_drop_percent": 0.0
+    },
+    "brightness_up": {
+      "label": "Brightness Increase (+50%)",
+      "prediction_stability_rate_percent": 58.0,
+      "baseline_mean_confidence_percent": 83.81,
+      "perturbed_mean_confidence_percent": 85.56,
+      "confidence_drop_percent": 0.0
+    },
+    "contrast_low": {
+      "label": "Low Contrast (-50%)",
+      "prediction_stability_rate_percent": 80.0,
+      "baseline_mean_confidence_percent": 83.81,
+      "perturbed_mean_confidence_percent": 79.11,
+      "confidence_drop_percent": 4.7
+    },
+    "contrast_high": {
+      "label": "High Contrast (+60%)",
+      "prediction_stability_rate_percent": 80.0,
+      "baseline_mean_confidence_percent": 83.81,
+      "perturbed_mean_confidence_percent": 74.73,
+      "confidence_drop_percent": 9.08
+    },
+    "blur": {
+      "label": "Gaussian Blur (r=1.2)",
+      "prediction_stability_rate_percent": 80.0,
+      "baseline_mean_confidence_percent": 83.81,
+      "perturbed_mean_confidence_percent": 83.65,
+      "confidence_drop_percent": 0.16
+    },
+    "rotation_subtle": {
+      "label": "Rotation (15 deg)",
+      "prediction_stability_rate_percent": 84.0,
+      "baseline_mean_confidence_percent": 83.81,
+      "perturbed_mean_confidence_percent": 84.56,
+      "confidence_drop_percent": 0.0
+    },
+    "rotation_90": {
+      "label": "Rotation (90 deg)",
+      "prediction_stability_rate_percent": 68.0,
+      "baseline_mean_confidence_percent": 83.81,
+      "perturbed_mean_confidence_percent": 80.23,
+      "confidence_drop_percent": 3.58
+    },
+    "crop": {
+      "label": "Scale Crop (75%)",
+      "prediction_stability_rate_percent": 82.0,
+      "baseline_mean_confidence_percent": 83.81,
+      "perturbed_mean_confidence_percent": 82.69,
+      "confidence_drop_percent": 1.12
+    },
+    "noise": {
+      "label": "Gaussian Sensor Noise (std=18)",
+      "prediction_stability_rate_percent": 42.0,
+      "baseline_mean_confidence_percent": 83.81,
+      "perturbed_mean_confidence_percent": 72.68,
+      "confidence_drop_percent": 11.13
+    },
+    "jpeg_compression": {
+      "label": "JPEG Artifacts (quality=30)",
+      "prediction_stability_rate_percent": 70.0,
+      "baseline_mean_confidence_percent": 83.81,
+      "perturbed_mean_confidence_percent": 85.34,
+      "confidence_drop_percent": 0.0
+    }
+  }
+}
