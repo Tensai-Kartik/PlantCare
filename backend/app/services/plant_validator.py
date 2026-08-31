@@ -1,52 +1,40 @@
-"""
-Plant vs. Non-Plant Verification Service for PlantCare
-Multi-signal vision engine that validates whether an uploaded image contains an authentic
-plant leaf or agricultural crop specimen before running pathology classification.
-
-Signals:
-1. Deep Semantic Categorization (ImageNet-1K MobileNetV3-Small)
-   Detects vehicles, animals, consumer electronics, apparel, furniture, buildings, tools, food.
-2. Botanical & Bio-Pigment Spectral Analysis
-   Computes Excess Green Index (ExG), Visible Atmospherically Resistant Index (VARI),
-   and multi-spectrum masks (chlorophyll green, chlorotic yellow, necrotic rust/brown).
-3. Geometric Structural Edge & Line Density Analysis
-   Detects rigid straight-line man-made contours (windshields, wheels, grilles, bezels).
-4. Multi-Leaf & Subject Focus Analysis
-   Detects multiple leaves, excessive background, partial leaves, or occlusions.
-5. Gemini Vision Multimodal Fallback / Verification (Configurable)
-"""
-
 import re
 import cv2
 import numpy as np
-from PIL import Image
 from io import BytesIO
-from typing import Dict, Any, Tuple, Optional, List
-from dataclasses import dataclass, field
-
+from PIL import Image
+from typing import Tuple, List, Dict, Any, Optional
 import torch
 import torchvision.models as models
-from torchvision import transforms
+from pydantic import BaseModel
 
-@dataclass
-class PlantValidationResult:
+class PlantValidationResult(BaseModel):
     is_plant: bool
-    status: str  # "suitable", "warning", "rejected"
+    status: str                         # "suitable" | "warning" | "rejected"
     detected_subject: str
-    subject_category: str  # "plant", "vehicle", "animal", "electronics", "person", "furniture", "food", "manmade", "non_plant"
-    plant_confidence: float  # 0.0 to 100.0
-    reason_code: str  # "SUITABLE_PLANT", "NON_PLANT_OBJECT", "LEAF_TOO_SMALL", "MULTIPLE_LEAVES", "PARTIAL_LEAF", "OBSTRUCTION", etc.
-    warnings: List[str] = field(default_factory=list)
-    has_multiple_leaves: bool = False
-    leaf_count_estimate: int = 1
-    leaf_focus_status: str = "optimal"  # "optimal", "leaf_too_small", "excessive_background", "partial_leaf", "obstructed"
+    subject_category: str               # "plant" | "vehicle" | "animal" | "electronics" | "person" | "furniture" | "food" | "manmade" | "non_plant"
+    plant_confidence: float
+    reason_code: str                    # "SUITABLE_PLANT" | "NON_PLANT_OBJECT" | "MULTIPLE_LEAVES" | "LEAF_TOO_SMALL" | "PARTIAL_LEAF" | "BLURRY" | "TOO_DARK" | "TOO_BRIGHT"
+    warnings: List[str]
+    has_multiple_leaves: bool
+    leaf_count_estimate: int
+    leaf_focus_status: str              # "centered_single" | "multiple_leaves" | "leaf_too_small" | "partial_leaf" | "non_plant"
     rejection_reason: Optional[str] = None
-    foliage_ratio: float = 0.0
-    background_ratio: float = 0.0
-    metrics: Dict[str, Any] = field(default_factory=dict)
-
+    foliage_ratio: float
+    background_ratio: float
+    metrics: Dict[str, Any]
 
 class PlantPresenceValidator:
+    """
+    Production-grade multi-signal botanical presence & specimen focus validator.
+    
+    Combines:
+    1. Vegetative Bio-Pigment & Spectral Indexing (Excess Green ExG = 2G - R - B, Chlorophyll Green & Carotenoid/Necrosis HSV masks)
+    2. Geometric Line & Contour Analysis (Edge curvature vs rigid straight-line density)
+    3. Deep Semantic Classification (MobileNetV3-Small on 1,000 ImageNet categories)
+    4. Multi-Leaf & Spatial Subject Focus Clustering (Connected-component morphology)
+    """
+
     def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._model: Optional[torch.nn.Module] = None
@@ -80,7 +68,7 @@ class PlantPresenceValidator:
         """
         groups = {
             "vehicle": [],
-            "animal": list(range(398)),  # 0-397 are fish, amphibians, reptiles, birds, dogs, mammals
+            "animal": list(range(398)),  # 0-397: fish, amphibians, reptiles, birds, mammals, arthropods
             "electronics": [],
             "apparel_person": [],
             "furniture_building": [],
@@ -178,106 +166,125 @@ class PlantPresenceValidator:
         """
         warnings = []
         has_multiple_leaves = False
-        leaf_count_est = 1
-        leaf_focus_status = "optimal"
+        leaf_count_estimate = 1
+        focus_status = "centered_single"
 
-        # 1. Morphological filtering to isolate distinct leaf bodies
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-        cleaned_mask = cv2.morphologyEx(tissue_mask, cv2.MORPH_OPEN, kernel)
-        cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_CLOSE, kernel)
+        total_area = float(width * height)
+        if total_area <= 0:
+            return False, 0, "non_plant", []
 
-        # 2. Find contours
-        contours, _ = cv2.findContours(cleaned_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        total_area = width * height
+        # Find connected components of foliage
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(tissue_mask, connectivity=8)
 
-        # Filter contours by minimum significant size (> 3.5% of image area)
-        min_leaf_area = total_area * 0.035
-        significant_leaf_contours = [c for c in contours if cv2.contourArea(c) > min_leaf_area]
+        # Filter components by size (> 3% of image area)
+        min_comp_area = total_area * 0.03
+        significant_components = []
 
-        leaf_count_est = max(1, len(significant_leaf_contours))
-        if leaf_count_est >= 3:
-            has_multiple_leaves = True
-            warnings.append("MULTIPLE_LEAVES")
+        for i in range(1, num_labels):
+            area = stats[i, cv2.CC_STAT_AREA]
+            if area >= min_comp_area:
+                significant_components.append({
+                    "label": i,
+                    "area": area,
+                    "area_ratio": area / total_area,
+                    "x": stats[i, cv2.CC_STAT_LEFT],
+                    "y": stats[i, cv2.CC_STAT_TOP],
+                    "w": stats[i, cv2.CC_STAT_WIDTH],
+                    "h": stats[i, cv2.CC_STAT_HEIGHT],
+                    "cx": centroids[i][0],
+                    "cy": centroids[i][1]
+                })
 
-        # 3. Leaf / Subject Focus Analysis
+        # Estimate leaf count
+        num_sig = len(significant_components)
+        if num_sig >= 2:
+            major_comps = [c for c in significant_components if c["area_ratio"] >= 0.04]
+            if len(major_comps) >= 2:
+                has_multiple_leaves = True
+                leaf_count_estimate = len(major_comps)
+                focus_status = "multiple_leaves"
+                warnings.append("MULTIPLE_LEAVES")
+            else:
+                leaf_count_estimate = max(1, num_sig)
+        else:
+            leaf_count_estimate = 1
+
+        # Check leaf size / zoom (framing ratio)
         if foliage_ratio < 0.15:
-            leaf_focus_status = "leaf_too_small"
+            focus_status = "leaf_too_small"
             warnings.append("LEAF_TOO_SMALL")
         elif foliage_ratio > 0.88:
-            # Overfilling or partial leaf cut-off
-            leaf_focus_status = "partial_leaf"
-            warnings.append("PARTIAL_LEAF")
-        elif (1.0 - foliage_ratio) > 0.85:
-            leaf_focus_status = "excessive_background"
-            warnings.append("EXCESSIVE_BACKGROUND")
-
-        # 4. Check if leaf touches 3+ image borders (partially outside frame)
-        if len(significant_leaf_contours) > 0:
-            primary_c = max(significant_leaf_contours, key=cv2.contourArea)
-            x, y, w, h = cv2.boundingRect(primary_c)
-            border_touches = 0
-            if x <= 2: border_touches += 1
-            if y <= 2: border_touches += 1
-            if (x + w) >= (width - 3): border_touches += 1
-            if (y + h) >= (height - 3): border_touches += 1
-
-            if border_touches >= 3 and foliage_ratio < 0.70:
-                if "PARTIAL_LEAF" not in warnings:
+            focus_status = "partial_leaf"
+            if num_sig == 1 and significant_components:
+                c = significant_components[0]
+                touches_all_borders = (c["x"] == 0 and c["y"] == 0 and (c["x"] + c["w"] >= width - 1) and (c["y"] + c["h"] >= height - 1))
+                if touches_all_borders and foliage_ratio > 0.95:
                     warnings.append("PARTIAL_LEAF")
-                    leaf_focus_status = "partial_leaf"
 
-        return has_multiple_leaves, leaf_count_est, leaf_focus_status, warnings
+        return has_multiple_leaves, leaf_count_estimate, focus_status, warnings
 
-    def validate_image(self, image_bytes: bytes) -> PlantValidationResult:
+    def validate_image(self, image_input: Any) -> PlantValidationResult:
         """
-        Runs comprehensive multi-signal validation to verify if the image is a genuine plant/leaf.
+        Runs comprehensive multi-signal botanical validation.
+        Accepts raw image bytes, PIL.Image.Image, or numpy array.
         """
+        if isinstance(image_input, bytes):
+            pil_image = Image.open(BytesIO(image_input)).convert("RGB")
+        elif isinstance(image_input, Image.Image):
+            pil_image = image_input.convert("RGB")
+        else:
+            pil_image = Image.fromarray(image_input).convert("RGB")
+
         self._lazy_init()
+        rgb_img = np.array(pil_image)
+        height, width, _ = rgb_img.shape
+        total_pixels = float(width * height)
 
-        # Load image
-        pil_image = Image.open(BytesIO(image_bytes)).convert("RGB")
-        width, height = pil_image.size
-        cv_img = np.array(pil_image)
+        cv_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2BGR)
+        hsv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2HSV)
 
         # ---------------------------------------------------------
-        # Signal 1: Bio-Pigment & Botanical Spectral Analysis
+        # Signal 1: Bio-Pigment & Spectral Reflectance Analysis
         # ---------------------------------------------------------
-        r = cv_img[:, :, 0].astype(float)
-        g = cv_img[:, :, 1].astype(float)
-        b = cv_img[:, :, 2].astype(float)
+        R = rgb_img[:, :, 0].astype(np.float32) / 255.0
+        G = rgb_img[:, :, 1].astype(np.float32) / 255.0
+        B = rgb_img[:, :, 2].astype(np.float32) / 255.0
 
-        # Excess Green Index: 2G - R - B
-        exg = 2.0 * g - r - b
-        exg_positive = exg > 10.0
-        exg_ratio = float(np.sum(exg_positive) / (width * height)) if (width * height) > 0 else 0.0
+        # Excess Green Index: ExG = 2G - R - B (Vegetative index)
+        exg = (2.0 * G) - R - B
+        exg_positive_pixels = np.sum(exg > 0.05)
+        exg_ratio = float(exg_positive_pixels / total_pixels) if total_pixels > 0 else 0.0
 
-        # Multi-Spectrum Leaf Tissue Masks (HSV)
-        hsv = cv2.cvtColor(cv_img, cv2.COLOR_RGB2HSV)
+        # Chlorophyll Green Hue Mask: HSV H in [25, 95], S in [20, 255], V in [20, 255]
+        lower_green = np.array([25, 20, 20])
+        upper_green = np.array([95, 255, 255])
+        mask_green = cv2.inRange(hsv_img, lower_green, upper_green)
+        green_ratio = float(cv2.countNonZero(mask_green) / total_pixels) if total_pixels > 0 else 0.0
 
-        # Green leaf foliage (Chlorophyll)
-        mask_green = cv2.inRange(hsv, np.array([18, 20, 20]), np.array([95, 255, 255]))
-        green_pixels = cv2.countNonZero(mask_green)
-        green_ratio = float(green_pixels / (width * height)) if (width * height) > 0 else 0.0
+        # Carotenoid / Yellow Chlorosis Hue Mask: HSV H in [15, 28]
+        lower_yellow = np.array([15, 30, 40])
+        upper_yellow = np.array([28, 255, 255])
+        mask_yellow = cv2.inRange(hsv_img, lower_yellow, upper_yellow)
+        yellow_ratio = float(cv2.countNonZero(mask_yellow) / total_pixels) if total_pixels > 0 else 0.0
 
-        # Yellow / Chlorotic / Senescent leaf tissue (Requires active saturation S >= 50 and V >= 40)
-        mask_yellow = cv2.inRange(hsv, np.array([12, 50, 40]), np.array([25, 255, 255]))
-        yellow_pixels = cv2.countNonZero(mask_yellow)
-        yellow_ratio = float(yellow_pixels / (width * height)) if (width * height) > 0 else 0.0
-
-        # Brown / Rust / Necrotic blight lesion tissue
-        mask_brown_1 = cv2.inRange(hsv, np.array([0, 18, 18]), np.array([16, 255, 200]))
-        mask_brown_2 = cv2.inRange(hsv, np.array([165, 18, 18]), np.array([180, 255, 200]))
+        # Necrosis / Brown Lesion Hue Mask: HSV H in [0, 18] and [165, 180]
+        lower_brown_1 = np.array([0, 25, 20])
+        upper_brown_1 = np.array([18, 255, 200])
+        lower_brown_2 = np.array([165, 25, 20])
+        upper_brown_2 = np.array([180, 255, 200])
+        mask_brown_1 = cv2.inRange(hsv_img, lower_brown_1, upper_brown_1)
+        mask_brown_2 = cv2.inRange(hsv_img, lower_brown_2, upper_brown_2)
         mask_brown = cv2.bitwise_or(mask_brown_1, mask_brown_2)
+        brown_ratio = float(cv2.countNonZero(mask_brown) / total_pixels) if total_pixels > 0 else 0.0
 
-        # In authentic plants, brown lesion tissue is only counted as plant foliage
-        # if there is also active chlorophyll (green/yellow) OR positive Excess Green
-        if (green_ratio + yellow_ratio) > 0.02 or exg_ratio > 0.03:
+        # Combine plant tissue mask
+        if (green_ratio + yellow_ratio) > 0.02 or exg_ratio > 0.02:
             combined_tissue_mask = cv2.bitwise_or(cv2.bitwise_or(mask_green, mask_yellow), mask_brown)
         else:
             combined_tissue_mask = cv2.bitwise_or(mask_green, mask_yellow)
 
         foliage_pixels = cv2.countNonZero(combined_tissue_mask)
-        foliage_ratio = float(foliage_pixels / (width * height)) if (width * height) > 0 else 0.0
+        foliage_ratio = float(foliage_pixels / total_pixels) if total_pixels > 0 else 0.0
         background_ratio = round(max(0.0, 1.0 - foliage_ratio), 3)
 
         # ---------------------------------------------------------
@@ -341,6 +348,8 @@ class PlantPresenceValidator:
         metrics_dict = {
             "foliage_ratio_percent": round(foliage_ratio * 100.0, 2),
             "green_ratio_percent": round(green_ratio * 100.0, 2),
+            "yellow_ratio_percent": round(yellow_ratio * 100.0, 2),
+            "brown_ratio_percent": round(brown_ratio * 100.0, 2),
             "background_ratio_percent": round(background_ratio * 100.0, 2),
             "exg_ratio_percent": round(exg_ratio * 100.0, 2),
             "straight_lines_detected": line_count,
@@ -352,16 +361,60 @@ class PlantPresenceValidator:
             "animal_prob": round(p_anim * 100.0, 1),
             "electronics_prob": round(p_elec * 100.0, 1),
             "furniture_prob": round(p_furn * 100.0, 1),
+            "food_prob": round(p_food * 100.0, 1),
             "tool_prob": round(p_tool * 100.0, 1)
         }
 
         # ---------------------------------------------------------
-        # Decision Logic: Multi-Tiered Verification & Vetoes
+        # Decision Logic: Botanical Hierarchy
         # ---------------------------------------------------------
+        # A. Does the image have authentic botanical vegetative tissue?
+        # Requires genuine chlorophyll green leaf tissue and organic contour curvature
+        has_chlorophyll = (green_ratio >= 0.035) or (green_ratio >= 0.02 and exg_ratio >= 0.05)
+        has_organic_plant_tissue = has_chlorophyll and (foliage_ratio >= 0.10) and (straight_line_density < 0.045)
 
-        # 1. Definite Vehicle Veto (Car, Truck, Motorcycle, etc.)
-        if (p_veh > 0.35) or (p_veh > 0.15 and green_ratio < 0.05) or (top_idx in self._group_indices.get("vehicle", []) and top_prob > 0.20 and green_ratio < 0.05):
-            clean_name = top_name.replace("_", " ").title()
+        # Check for artificial green objects (e.g. green sports car or green metallic chair)
+        is_rigid_manmade_green = (
+            straight_line_density > 0.035 and
+            (p_veh > 0.40 or p_furn > 0.40 or p_elec > 0.40)
+        )
+
+        if has_organic_plant_tissue and not is_rigid_manmade_green:
+            # ---------------------------------------------------------
+            # PASS: Valid Plant / Leaf Specimen Confirmed
+            # ---------------------------------------------------------
+            plant_score = min(99.5, max(80.0, 70.0 + (foliage_ratio * 30.0) + (p_bot * 20.0)))
+            
+            val_status = "suitable"
+            primary_reason_code = "SUITABLE_PLANT"
+            if len(focus_warnings) > 0:
+                val_status = "warning"
+                primary_reason_code = focus_warnings[0]
+
+            return PlantValidationResult(
+                is_plant=True,
+                status=val_status,
+                detected_subject="Plant Leaf / Crop Specimen",
+                subject_category="plant",
+                plant_confidence=round(plant_score, 1),
+                reason_code=primary_reason_code,
+                warnings=focus_warnings,
+                has_multiple_leaves=has_multi,
+                leaf_count_estimate=leaf_est,
+                leaf_focus_status=focus_status,
+                rejection_reason=None,
+                foliage_ratio=round(foliage_ratio * 100.0, 1),
+                background_ratio=background_ratio,
+                metrics=metrics_dict
+            )
+
+        # ---------------------------------------------------------
+        # B. Non-Plant Object Vetoes (Triggered when no plant foliage exists)
+        # ---------------------------------------------------------
+        clean_name = top_name.replace("_", " ").title()
+
+        # 1. Definite Vehicle Veto
+        if p_veh > 0.20 or top_idx in self._group_indices.get("vehicle", []):
             return PlantValidationResult(
                 is_plant=False,
                 status="rejected",
@@ -379,9 +432,8 @@ class PlantPresenceValidator:
                 metrics=metrics_dict
             )
 
-        # 2. Definite Animal / Pet Veto (Dog, Cat, Bird, etc.)
-        if (p_anim > 0.35) or (p_anim > 0.15 and green_ratio < 0.05) or (top_idx in self._group_indices.get("animal", []) and top_prob > 0.20 and green_ratio < 0.05):
-            clean_name = top_name.replace("_", " ").title()
+        # 2. Definite Animal / Pet Veto
+        if p_anim > 0.25 or top_idx in self._group_indices.get("animal", []):
             return PlantValidationResult(
                 is_plant=False,
                 status="rejected",
@@ -399,9 +451,8 @@ class PlantPresenceValidator:
                 metrics=metrics_dict
             )
 
-        # 3. Definite Electronic Device Veto (Laptop, Phone, Monitor, etc.)
-        if (p_elec > 0.35) or (p_elec > 0.15 and green_ratio < 0.05) or (top_idx in self._group_indices.get("electronics", []) and top_prob > 0.20 and green_ratio < 0.05):
-            clean_name = top_name.replace("_", " ").title()
+        # 3. Definite Electronic Device Veto
+        if p_elec > 0.20 or top_idx in self._group_indices.get("electronics", []):
             return PlantValidationResult(
                 is_plant=False,
                 status="rejected",
@@ -420,8 +471,7 @@ class PlantPresenceValidator:
             )
 
         # 4. Human / Apparel Veto
-        if (p_app > 0.40) or (p_app > 0.20 and green_ratio < 0.05) or (top_idx in self._group_indices.get("apparel_person", []) and top_prob > 0.25 and green_ratio < 0.05):
-            clean_name = top_name.replace("_", " ").title()
+        if p_app > 0.20 or top_idx in self._group_indices.get("apparel_person", []):
             return PlantValidationResult(
                 is_plant=False,
                 status="rejected",
@@ -440,8 +490,7 @@ class PlantPresenceValidator:
             )
 
         # 5. Furniture / Architecture Veto
-        if (p_furn > 0.40) or (p_furn > 0.20 and green_ratio < 0.05) or (top_idx in self._group_indices.get("furniture_building", []) and top_prob > 0.25 and green_ratio < 0.05):
-            clean_name = top_name.replace("_", " ").title()
+        if p_furn > 0.20 or top_idx in self._group_indices.get("furniture_building", []):
             return PlantValidationResult(
                 is_plant=False,
                 status="rejected",
@@ -460,8 +509,7 @@ class PlantPresenceValidator:
             )
 
         # 6. Prepared Food Veto
-        if (p_food > 0.40) or (p_food > 0.20 and green_ratio < 0.05) or (top_idx in self._group_indices.get("prepared_food", []) and top_prob > 0.25 and green_ratio < 0.05):
-            clean_name = top_name.replace("_", " ").title()
+        if p_food > 0.20 or top_idx in self._group_indices.get("prepared_food", []):
             return PlantValidationResult(
                 is_plant=False,
                 status="rejected",
@@ -479,9 +527,8 @@ class PlantPresenceValidator:
                 metrics=metrics_dict
             )
 
-        # 7. Hardware / Tools / Utensils Veto
-        if (p_tool > 0.40) or (p_tool > 0.20 and green_ratio < 0.05) or (top_idx in self._group_indices.get("tools_household", []) and top_prob > 0.25 and green_ratio < 0.05):
-            clean_name = top_name.replace("_", " ").title()
+        # 7. Hardware / Tools Veto
+        if p_tool > 0.20 or top_idx in self._group_indices.get("tools_household", []):
             return PlantValidationResult(
                 is_plant=False,
                 status="rejected",
@@ -499,8 +546,8 @@ class PlantPresenceValidator:
                 metrics=metrics_dict
             )
 
-        # 8. Man-Made Rigid Object / High Straight Line Density with Low Vegetation
-        if straight_line_density > 0.04 and foliage_ratio < 0.15:
+        # 8. Man-Made Geometric Object / High Straight Line Density with Low Vegetation
+        if straight_line_density > 0.035 and foliage_ratio < 0.15:
             return PlantValidationResult(
                 is_plant=False,
                 status="rejected",
@@ -518,49 +565,19 @@ class PlantPresenceValidator:
                 metrics=metrics_dict
             )
 
-        # 9. Insufficient Organic Plant Foliage Check (< 5% green/yellow foliage tissue and no botanical classification)
-        if (green_ratio + yellow_ratio) < 0.05 and p_bot < 0.15:
-            return PlantValidationResult(
-                is_plant=False,
-                status="rejected",
-                detected_subject="Non-Plant Subject (No Plant Foliage)",
-                subject_category="non_plant",
-                plant_confidence=round(foliage_ratio * 100.0, 1),
-                reason_code="NON_PLANT_OBJECT",
-                warnings=["NO_FOLIAGE"],
-                has_multiple_leaves=False,
-                leaf_count_estimate=0,
-                leaf_focus_status="non_plant",
-                rejection_reason=f"No recognizable plant chlorophyll tissue detected ({(green_ratio+yellow_ratio)*100:.1f}% vegetative tissue).",
-                foliage_ratio=round(foliage_ratio * 100.0, 1),
-                background_ratio=background_ratio,
-                metrics=metrics_dict
-            )
-
-        # ---------------------------------------------------------
-        # PASS: Valid Plant / Leaf Specimen Confirmed
-        # ---------------------------------------------------------
-        plant_score = min(99.5, max(75.0, 60.0 + (foliage_ratio * 50.0) + (p_bot * 30.0)))
-        
-        # Determine status and primary reason code
-        val_status = "suitable"
-        primary_reason_code = "SUITABLE_PLANT"
-        if len(focus_warnings) > 0:
-            val_status = "warning"
-            primary_reason_code = focus_warnings[0]
-
+        # 9. Generic Non-Plant Rejection
         return PlantValidationResult(
-            is_plant=True,
-            status=val_status,
-            detected_subject="Plant Leaf / Crop Specimen",
-            subject_category="plant",
-            plant_confidence=round(plant_score, 1),
-            reason_code=primary_reason_code,
-            warnings=focus_warnings,
-            has_multiple_leaves=has_multi,
-            leaf_count_estimate=leaf_est,
-            leaf_focus_status=focus_status,
-            rejection_reason=None,
+            is_plant=False,
+            status="rejected",
+            detected_subject="Non-Plant Subject (No Plant Foliage)",
+            subject_category="non_plant",
+            plant_confidence=round(foliage_ratio * 100.0, 1),
+            reason_code="NON_PLANT_OBJECT",
+            warnings=["NO_FOLIAGE"],
+            has_multiple_leaves=False,
+            leaf_count_estimate=0,
+            leaf_focus_status="non_plant",
+            rejection_reason=f"No recognizable plant chlorophyll tissue detected ({(green_ratio+yellow_ratio)*100:.1f}% vegetative tissue).",
             foliage_ratio=round(foliage_ratio * 100.0, 1),
             background_ratio=background_ratio,
             metrics=metrics_dict
