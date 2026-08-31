@@ -2,6 +2,24 @@
 # Master .gitignore for PlantCare (Full-Stack AI Project)
 # ==============================================================================
 
+# Environment Variables & Secrets (NEVER COMMIT SENSITIVE SECRETS)
+.env
+.env.*
+!.env.example
+*.env
+*.env.local
+*.env.*.local
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+*.pem
+*.key
+*.cert
+*.pfx
+
 # Python Bytecode & Cache
 __pycache__/
 *.py[cod]
@@ -34,13 +52,6 @@ ENV/
 env.bak/
 venv.bak/
 
-# Environment Variables & Secrets
-.env
-.env.local
-.env.*.local
-*.pem
-*.key
-
 # Node / Frontend Artifacts
 frontend/node_modules/
 node_modules/
@@ -65,12 +76,15 @@ lerna-debug.log*
 Thumbs.db
 desktop.ini
 
-# Temporary Scratch Files & OS Caches
+# Temporary Scratch Files, Media & OS Caches
 scratch/
+scratch_*
 *.tmp
 *.temp
 .system_generated/
 *.log
+.tempmediaStorage/
+.user_uploaded/
 
 # Coverage & Test Artifacts
 .coverage
