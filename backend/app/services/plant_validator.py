@@ -367,19 +367,19 @@ class PlantPresenceValidator:
         }
 
         # ---------------------------------------------------------
-        # Decision Logic: Strict Botanical Guardrail Hierarchy
+        # Decision Logic: Robust Multi-Signal Guardrail Hierarchy
         # ---------------------------------------------------------
         clean_name = top_name.replace("_", " ").title()
 
-        # Step 1: Definite Non-Plant Semantic Vetoes (Vehicles, Electronics, Animals, Furniture)
-        # 1. Vehicle / Automobile Veto (e.g. rusted cars, trucks, bikes, boats, planes)
-        if p_veh > 0.20 or top_idx in self._group_indices.get("vehicle", []):
+        # Step 1: Definite Vehicle & Electronics Vetoes (Vehicles, Gadgets, Computers)
+        # 1. Vehicle / Automobile Veto (Cars, trucks, station wagons, bikes, boats, planes)
+        if p_veh > 0.30 or (top_idx in self._group_indices.get("vehicle", []) and top_prob > 0.20):
             return PlantValidationResult(
                 is_plant=False,
                 status="rejected",
                 detected_subject=f"Vehicle / Automobile ({clean_name})",
                 subject_category="vehicle",
-                plant_confidence=round(max(0.0, 1.0 - p_veh) * 10.0, 1),
+                plant_confidence=round(max(0.0, 1.0 - max(p_veh, top_prob)) * 10.0, 1),
                 reason_code="NON_PLANT_OBJECT",
                 warnings=["NON_PLANT_VEHICLE"],
                 has_multiple_leaves=False,
@@ -391,14 +391,14 @@ class PlantPresenceValidator:
                 metrics=metrics_dict
             )
 
-        # 2. Electronic Device Veto (e.g. phones, laptops, TVs, clocks, speakers)
-        if p_elec > 0.20 or top_idx in self._group_indices.get("electronics", []):
+        # 2. Electronic Device Veto (Laptops, smartphones, screens, TVs, cameras, clocks)
+        if p_elec > 0.30 or (top_idx in self._group_indices.get("electronics", []) and top_prob > 0.20):
             return PlantValidationResult(
                 is_plant=False,
                 status="rejected",
                 detected_subject=f"Electronic Device ({clean_name})",
                 subject_category="electronics",
-                plant_confidence=round(max(0.0, 1.0 - p_elec) * 10.0, 1),
+                plant_confidence=round(max(0.0, 1.0 - max(p_elec, top_prob)) * 10.0, 1),
                 reason_code="NON_PLANT_OBJECT",
                 warnings=["NON_PLANT_ELECTRONICS"],
                 has_multiple_leaves=False,
@@ -410,131 +410,17 @@ class PlantPresenceValidator:
                 metrics=metrics_dict
             )
 
-        # 3. Animal / Pet Veto (e.g. dogs, cats, birds, insects outside leaf)
-        if (p_anim > 0.35 or (p_anim > 0.20 and green_ratio < 0.25 and top_idx in self._group_indices.get("animal", []))):
-            return PlantValidationResult(
-                is_plant=False,
-                status="rejected",
-                detected_subject=f"Animal / Pet ({clean_name})",
-                subject_category="animal",
-                plant_confidence=round(max(0.0, 1.0 - p_anim) * 10.0, 1),
-                reason_code="NON_PLANT_OBJECT",
-                warnings=["NON_PLANT_ANIMAL"],
-                has_multiple_leaves=False,
-                leaf_count_estimate=0,
-                leaf_focus_status="non_plant",
-                rejection_reason=f"The uploaded image appears to be an animal or pet ({clean_name}, {top_prob*100:.1f}% confidence).",
-                foliage_ratio=round(foliage_ratio * 100.0, 1),
-                background_ratio=background_ratio,
-                metrics=metrics_dict
-            )
-
-        # 4. Human / Apparel Veto
-        if p_app > 0.20 or top_idx in self._group_indices.get("apparel_person", []):
-            return PlantValidationResult(
-                is_plant=False,
-                status="rejected",
-                detected_subject=f"Clothing / Person ({clean_name})",
-                subject_category="person",
-                plant_confidence=round(max(0.0, 1.0 - p_app) * 10.0, 1),
-                reason_code="NON_PLANT_OBJECT",
-                warnings=["NON_PLANT_PERSON"],
-                has_multiple_leaves=False,
-                leaf_count_estimate=0,
-                leaf_focus_status="non_plant",
-                rejection_reason=f"The uploaded image contains human attire or portrait features ({clean_name}).",
-                foliage_ratio=round(foliage_ratio * 100.0, 1),
-                background_ratio=background_ratio,
-                metrics=metrics_dict
-            )
-
-        # 5. Furniture / Architecture Veto
-        if (p_furn > 0.25 and green_ratio < 0.25) or (top_idx in self._group_indices.get("furniture_building", []) and green_ratio < 0.20):
-            return PlantValidationResult(
-                is_plant=False,
-                status="rejected",
-                detected_subject=f"Building / Furniture ({clean_name})",
-                subject_category="furniture",
-                plant_confidence=round(max(0.0, 1.0 - max(p_furn, top_prob)) * 10.0, 1),
-                reason_code="NON_PLANT_OBJECT",
-                warnings=["NON_PLANT_FURNITURE"],
-                has_multiple_leaves=False,
-                leaf_count_estimate=0,
-                leaf_focus_status="non_plant",
-                rejection_reason=f"The image shows architectural or furniture elements ({clean_name}, {top_prob*100:.1f}% confidence).",
-                foliage_ratio=round(foliage_ratio * 100.0, 1),
-                background_ratio=background_ratio,
-                metrics=metrics_dict
-            )
-
-        # 6. Prepared Food Veto
-        if (p_food > 0.25 and green_ratio < 0.25) or (top_idx in self._group_indices.get("prepared_food", []) and green_ratio < 0.20):
-            return PlantValidationResult(
-                is_plant=False,
-                status="rejected",
-                detected_subject=f"Prepared Food ({clean_name})",
-                subject_category="food",
-                plant_confidence=round(max(0.0, 1.0 - p_food) * 10.0, 1),
-                reason_code="NON_PLANT_OBJECT",
-                warnings=["NON_PLANT_FOOD"],
-                has_multiple_leaves=False,
-                leaf_count_estimate=0,
-                leaf_focus_status="non_plant",
-                rejection_reason=f"The uploaded image contains prepared food or kitchenware ({clean_name}).",
-                foliage_ratio=round(foliage_ratio * 100.0, 1),
-                background_ratio=background_ratio,
-                metrics=metrics_dict
-            )
-
-        # 7. Hardware / Tools Veto
-        if (p_tool > 0.25 and green_ratio < 0.25) or (top_idx in self._group_indices.get("tools_household", []) and green_ratio < 0.20):
-            return PlantValidationResult(
-                is_plant=False,
-                status="rejected",
-                detected_subject=f"Hardware / Tool ({clean_name})",
-                subject_category="manmade",
-                plant_confidence=round(max(0.0, 1.0 - p_tool) * 10.0, 1),
-                reason_code="NON_PLANT_OBJECT",
-                warnings=["NON_PLANT_TOOL"],
-                has_multiple_leaves=False,
-                leaf_count_estimate=0,
-                leaf_focus_status="non_plant",
-                rejection_reason=f"The uploaded image contains mechanical tools or hardware ({clean_name}).",
-                foliage_ratio=round(foliage_ratio * 100.0, 1),
-                background_ratio=background_ratio,
-                metrics=metrics_dict
-            )
-
-        # 8. Man-Made Geometric Object / High Straight Line Density with Low Vegetation
-        if straight_line_density > 0.035 and foliage_ratio < 0.15:
-            return PlantValidationResult(
-                is_plant=False,
-                status="rejected",
-                detected_subject="Man-Made Geometric Object",
-                subject_category="manmade",
-                plant_confidence=5.0,
-                reason_code="NON_PLANT_OBJECT",
-                warnings=["RIGID_EDGES"],
-                has_multiple_leaves=False,
-                leaf_count_estimate=0,
-                leaf_focus_status="non_plant",
-                rejection_reason="Excessive linear and geometric edges detected with insufficient plant tissue.",
-                foliage_ratio=round(foliage_ratio * 100.0, 1),
-                background_ratio=background_ratio,
-                metrics=metrics_dict
-            )
-
-        # Step 2: Genuine Botanical Plant Foliage Confirmation
-        has_organic_plant_tissue = (
-            (green_ratio >= 0.035 and foliage_ratio >= 0.12) or
-            (green_ratio >= 0.025 and exg_ratio >= 0.05 and foliage_ratio >= 0.12) or
-            (green_ratio >= 0.05) or
-            (p_bot >= 0.15)
+        # Step 2: Strong Botanical Foliage Dominance (Guaranteed Plant Leaf)
+        # Real agricultural leaves have high chlorophyll green and vegetative tissue.
+        # Overrides generic ImageNet insect/ant false positives on foliar necrosis spots.
+        is_strongly_botanical = (
+            (green_ratio >= 0.15) or
+            (foliage_ratio >= 0.35 and green_ratio >= 0.05) or
+            (exg_ratio >= 0.15 and foliage_ratio >= 0.30)
         )
 
-        if has_organic_plant_tissue:
-            plant_score = min(99.5, max(85.0, 75.0 + (foliage_ratio * 25.0)))
-            
+        if is_strongly_botanical:
+            plant_score = min(99.5, max(88.0, 78.0 + (foliage_ratio * 22.0)))
             val_status = "suitable"
             primary_reason_code = "SUITABLE_PLANT"
             if len(focus_warnings) > 0:
@@ -558,7 +444,155 @@ class PlantPresenceValidator:
                 metrics=metrics_dict
             )
 
-        # Step 3: Generic Non-Plant Rejection
+        # Step 3: Definite Non-Plant Semantic Vetoes (Pets, Apparel, Furniture, Food, Hardware)
+        # 1. Definite Mammal / Pet / Bird Veto (Dogs, cats, domestic pets, animals)
+        # Note: ImageNet classes < 300 are mammals, birds, reptiles, fish (excluding small insects).
+        if (top_idx < 300 and top_idx in self._group_indices.get("animal", []) and top_prob > 0.35 and green_ratio < 0.15 and foliage_ratio < 0.35):
+            return PlantValidationResult(
+                is_plant=False,
+                status="rejected",
+                detected_subject=f"Animal / Pet ({clean_name})",
+                subject_category="animal",
+                plant_confidence=round(max(0.0, 1.0 - top_prob) * 10.0, 1),
+                reason_code="NON_PLANT_OBJECT",
+                warnings=["NON_PLANT_ANIMAL"],
+                has_multiple_leaves=False,
+                leaf_count_estimate=0,
+                leaf_focus_status="non_plant",
+                rejection_reason=f"The uploaded image appears to be an animal or pet ({clean_name}, {top_prob*100:.1f}% confidence).",
+                foliage_ratio=round(foliage_ratio * 100.0, 1),
+                background_ratio=background_ratio,
+                metrics=metrics_dict
+            )
+
+        # 2. Human / Apparel Veto
+        if (p_app > 0.25 or (top_idx in self._group_indices.get("apparel_person", []) and top_prob > 0.20)) and green_ratio < 0.25:
+            return PlantValidationResult(
+                is_plant=False,
+                status="rejected",
+                detected_subject=f"Clothing / Person ({clean_name})",
+                subject_category="person",
+                plant_confidence=round(max(0.0, 1.0 - p_app) * 10.0, 1),
+                reason_code="NON_PLANT_OBJECT",
+                warnings=["NON_PLANT_PERSON"],
+                has_multiple_leaves=False,
+                leaf_count_estimate=0,
+                leaf_focus_status="non_plant",
+                rejection_reason=f"The uploaded image contains human attire or portrait features ({clean_name}).",
+                foliage_ratio=round(foliage_ratio * 100.0, 1),
+                background_ratio=background_ratio,
+                metrics=metrics_dict
+            )
+
+        # 3. Furniture / Architecture Veto
+        if ((p_furn > 0.25 or top_idx in self._group_indices.get("furniture_building", [])) and green_ratio < 0.15 and foliage_ratio < 0.30):
+            return PlantValidationResult(
+                is_plant=False,
+                status="rejected",
+                detected_subject=f"Building / Furniture ({clean_name})",
+                subject_category="furniture",
+                plant_confidence=round(max(0.0, 1.0 - max(p_furn, top_prob)) * 10.0, 1),
+                reason_code="NON_PLANT_OBJECT",
+                warnings=["NON_PLANT_FURNITURE"],
+                has_multiple_leaves=False,
+                leaf_count_estimate=0,
+                leaf_focus_status="non_plant",
+                rejection_reason=f"The image shows architectural or furniture elements ({clean_name}, {top_prob*100:.1f}% confidence).",
+                foliage_ratio=round(foliage_ratio * 100.0, 1),
+                background_ratio=background_ratio,
+                metrics=metrics_dict
+            )
+
+        # 4. Prepared Food Veto
+        if ((p_food > 0.25 or top_idx in self._group_indices.get("prepared_food", [])) and green_ratio < 0.15 and foliage_ratio < 0.30):
+            return PlantValidationResult(
+                is_plant=False,
+                status="rejected",
+                detected_subject=f"Prepared Food ({clean_name})",
+                subject_category="food",
+                plant_confidence=round(max(0.0, 1.0 - p_food) * 10.0, 1),
+                reason_code="NON_PLANT_OBJECT",
+                warnings=["NON_PLANT_FOOD"],
+                has_multiple_leaves=False,
+                leaf_count_estimate=0,
+                leaf_focus_status="non_plant",
+                rejection_reason=f"The uploaded image contains prepared food or kitchenware ({clean_name}).",
+                foliage_ratio=round(foliage_ratio * 100.0, 1),
+                background_ratio=background_ratio,
+                metrics=metrics_dict
+            )
+
+        # 5. Hardware / Tools Veto
+        if ((p_tool > 0.25 or top_idx in self._group_indices.get("tools_household", [])) and green_ratio < 0.15 and foliage_ratio < 0.30):
+            return PlantValidationResult(
+                is_plant=False,
+                status="rejected",
+                detected_subject=f"Hardware / Tool ({clean_name})",
+                subject_category="manmade",
+                plant_confidence=round(max(0.0, 1.0 - p_tool) * 10.0, 1),
+                reason_code="NON_PLANT_OBJECT",
+                warnings=["NON_PLANT_TOOL"],
+                has_multiple_leaves=False,
+                leaf_count_estimate=0,
+                leaf_focus_status="non_plant",
+                rejection_reason=f"The uploaded image contains mechanical tools or hardware ({clean_name}).",
+                foliage_ratio=round(foliage_ratio * 100.0, 1),
+                background_ratio=background_ratio,
+                metrics=metrics_dict
+            )
+
+        # 6. Man-Made Geometric Object / High Straight Line Density with Low Vegetation
+        if straight_line_density > 0.035 and foliage_ratio < 0.15 and green_ratio < 0.08:
+            return PlantValidationResult(
+                is_plant=False,
+                status="rejected",
+                detected_subject="Man-Made Geometric Object",
+                subject_category="manmade",
+                plant_confidence=5.0,
+                reason_code="NON_PLANT_OBJECT",
+                warnings=["RIGID_EDGES"],
+                has_multiple_leaves=False,
+                leaf_count_estimate=0,
+                leaf_focus_status="non_plant",
+                rejection_reason="Excessive linear and geometric edges detected with insufficient plant tissue.",
+                foliage_ratio=round(foliage_ratio * 100.0, 1),
+                background_ratio=background_ratio,
+                metrics=metrics_dict
+            )
+
+        # Step 4: Botanical Tissue Confirmation (Includes Small / Distant Leaves)
+        has_organic_plant_tissue = (
+            (green_ratio >= 0.03 and foliage_ratio >= 0.06) or
+            (exg_ratio >= 0.03 and foliage_ratio >= 0.06) or
+            (p_bot >= 0.15)
+        )
+
+        if has_organic_plant_tissue:
+            plant_score = min(99.5, max(85.0, 75.0 + (foliage_ratio * 25.0)))
+            val_status = "suitable"
+            primary_reason_code = "SUITABLE_PLANT"
+            if len(focus_warnings) > 0:
+                val_status = "warning"
+                primary_reason_code = focus_warnings[0]
+
+            return PlantValidationResult(
+                is_plant=True,
+                status=val_status,
+                detected_subject="Plant Leaf / Crop Specimen",
+                subject_category="plant",
+                plant_confidence=round(plant_score, 1),
+                reason_code=primary_reason_code,
+                warnings=focus_warnings,
+                has_multiple_leaves=has_multi,
+                leaf_count_estimate=leaf_est,
+                leaf_focus_status=focus_status,
+                rejection_reason=None,
+                foliage_ratio=round(foliage_ratio * 100.0, 1),
+                background_ratio=background_ratio,
+                metrics=metrics_dict
+            )
+
+        # Step 5: Generic Non-Plant Rejection
         return PlantValidationResult(
             is_plant=False,
             status="rejected",
