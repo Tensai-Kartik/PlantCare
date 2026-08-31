@@ -187,25 +187,24 @@ class InferenceService:
         lookup_end = time.perf_counter()
         lookup_ms = (lookup_end - lookup_start) * 1000.0
 
-        # Stage 5: Grad-CAM Heatmap Generation (Only if confident / moderate)
+        # Stage 5: Grad-CAM Heatmap Generation (Always generated for valid plant specimens)
         gradcam_start = time.perf_counter()
         gradcam_b64 = None
-        gradcam_status = "skipped_unsupported" if pred_state == "plant_unsupported_condition" else "generated"
-        if pred_state != "plant_unsupported_condition":
-            try:
-                target_layer = model_wrapper.get_target_layer_for_gradcam()
-                gradcam_b64 = gradcam_service.generate_gradcam(
-                    model=model_wrapper.model,
-                    target_layer=target_layer,
-                    input_tensor=input_tensor.clone(),
-                    raw_pil_image=pil_image,
-                    target_class_idx=top_class_idx
-                )
-                if not gradcam_b64:
-                    gradcam_status = "generation_failed"
-            except Exception as e:
-                print(f"Grad-CAM execution exception: {e}")
-                gradcam_status = f"error: {str(e)[:50]}"
+        gradcam_status = "generated"
+        try:
+            target_layer = model_wrapper.get_target_layer_for_gradcam()
+            gradcam_b64 = gradcam_service.generate_gradcam(
+                model=model_wrapper.model,
+                target_layer=target_layer,
+                input_tensor=input_tensor.clone(),
+                raw_pil_image=pil_image,
+                target_class_idx=top_class_idx
+            )
+            if not gradcam_b64:
+                gradcam_status = "generation_failed"
+        except Exception as e:
+            print(f"Grad-CAM execution exception: {e}")
+            gradcam_status = f"error: {str(e)[:50]}"
         gradcam_end = time.perf_counter()
         gradcam_ms = (gradcam_end - gradcam_start) * 1000.0
 

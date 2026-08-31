@@ -228,79 +228,7 @@ export const ResultView: React.FC<ResultViewProps> = ({
   }
 
   // ---------------------------------------------------------------------------
-  // STATE 4: PLANT UNSUPPORTED / OUT-OF-INDEX CONDITION
-  // ---------------------------------------------------------------------------
-  if (state === 'plant_unsupported_condition') {
-    return (
-      <div className="w-full max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300">
-        <div className="bg-gradient-to-r from-amber-50 via-amber-100/50 to-orange-50 dark:from-amber-950/40 dark:via-zinc-900 dark:to-zinc-900 border border-amber-200 dark:border-amber-900/50 rounded-3xl p-6 sm:p-8 custom-shadow space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-2xl bg-amber-600 text-white shadow-md shadow-amber-600/30">
-                <HelpCircle className="w-6 h-6" />
-              </div>
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 block">
-                  Out-of-Distribution Condition Detection
-                </span>
-                <h2 className="text-xl sm:text-2xl font-black text-amber-950 dark:text-amber-100 tracking-tight">
-                  Plant Foliage Detected — Condition Not Indexed
-                </h2>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 self-start sm:self-auto px-3.5 py-1.5 rounded-xl bg-amber-100 dark:bg-amber-950/80 border border-amber-200 dark:border-amber-900/60 text-xs font-bold text-amber-800 dark:text-amber-300">
-              <span>Entropy: {prediction?.entropy} (Uncertain)</span>
-            </div>
-          </div>
-
-          <p className="text-xs sm:text-sm text-amber-950/90 dark:text-zinc-300 leading-relaxed max-w-3xl">
-            Our multi-signal botanical validator confirms that this is a valid plant leaf. However, the model prediction exhibits high prediction entropy and low probability margin, indicating that this specific crop disease, viral strain, or nutrient deficiency is not in PlantCare's 21-class benchmark index.
-          </p>
-        </div>
-
-        {/* Possible Close Matches & General Guidance */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-surface border border-subtle rounded-3xl p-5 sm:p-6 custom-shadow space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-color">
-              Closest Statistical Signatures
-            </h3>
-            <div className="space-y-2">
-              {prediction.top_candidates.slice(0, 3).map((c, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-surface-elevated border border-subtle text-xs">
-                  <span className="font-semibold text-primary-color">{c.name}</span>
-                  <span className="font-mono text-muted-color">{c.probability_percent}% match</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-surface border border-subtle rounded-3xl p-5 sm:p-6 custom-shadow space-y-3">
-            <h3 className="text-sm font-bold text-primary-color">
-              General Agronomic Recommendations
-            </h3>
-            <ul className="space-y-2 text-xs text-secondary-color">
-              <li className="flex items-start gap-2">
-                <span className="text-amber-600 font-bold">✓</span>
-                <span>Isolate the affected plant to prevent potential spore spread.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-amber-600 font-bold">✓</span>
-                <span>Inspect under-leaf surfaces for spider mites, aphids, or fungal mycelium.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-amber-600 font-bold">✓</span>
-                <span>Consult with a certified agricultural extension agent or local diagnostic lab.</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // STATES 1, 2, 3: AUTHENTIC PLANT DIAGNOSTIC RESULTS SCREEN
+  // AUTHENTIC PLANT DIAGNOSTIC RESULTS SCREEN (ALL PLANT CONDITIONS)
   // ---------------------------------------------------------------------------
   const getSeverityBadgeClass = (severity: string) => {
     switch (severity.toLowerCase()) {
@@ -373,14 +301,21 @@ export const ResultView: React.FC<ResultViewProps> = ({
         </div>
       )}
 
-      {/* Uncertainty Notice for State 2 & 3 */}
-      {state === 'plant_uncertain' && (
-        <div className="p-4 rounded-3xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-          <div className="text-xs text-amber-950 dark:text-amber-200 space-y-1">
-            <span className="font-bold block">Inconclusive Botanical Classification</span>
-            <p>
-              The AI detected multiple competing disease signatures (Entropy: {prediction.entropy}, Margin: {prediction.top1_top2_margin}). Review the "Possible Matches" candidate list below and verify with the symptom checklist.
+      {/* Uncertainty Notice for State 3 & 4 */}
+      {(state === 'plant_uncertain' || state === 'plant_unsupported_condition') && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-zinc-900 border border-amber-200 dark:border-amber-900/40 flex items-start gap-3 shadow-xs">
+          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div className="text-xs text-amber-950 dark:text-amber-200 space-y-1 flex-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <span className="font-bold text-sm text-amber-900 dark:text-amber-300">
+                Differential Diagnosis Match • Cross-Referencing Advisory
+              </span>
+              <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-200/70 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 self-start sm:self-auto">
+                Entropy: {prediction?.entropy} • Top Match: {prediction?.name}
+              </span>
+            </div>
+            <p className="leading-relaxed text-amber-950/90 dark:text-zinc-300">
+              PlantCare confirmed authentic living leaf tissue. Because natural in-field lighting and multi-lesion patterns create competing disease signatures, we have provided the top matching condition (<strong>{prediction?.name}</strong>) along with candidate alternatives below. Review the <strong>Symptoms</strong> and <strong>Treatment Guide</strong> tabs to verify against your plant.
             </p>
           </div>
         </div>
@@ -420,14 +355,14 @@ export const ResultView: React.FC<ResultViewProps> = ({
                 AI Prediction
               </span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                {prediction.plant}
+                {prediction?.plant}
               </span>
             </div>
 
             <h3 className="text-xl sm:text-2xl font-black text-primary-color tracking-tight mt-1 leading-tight">
-              {prediction.name}
+              {prediction?.name}
             </h3>
-            {prediction.scientific_name && (
+            {prediction?.scientific_name && (
               <p className="text-xs sm:text-sm text-muted-color italic mt-0.5">
                 ({prediction.scientific_name})
               </p>
@@ -438,27 +373,27 @@ export const ResultView: React.FC<ResultViewProps> = ({
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-secondary-color">Calibrated Confidence</span>
                 <span className="text-base font-black text-emerald-600 dark:text-emerald-400">
-                  {prediction.confidence_percent}%
+                  {prediction?.confidence_percent}%
                 </span>
               </div>
               <div className="w-full h-3 rounded-full bg-surface-elevated overflow-hidden border border-subtle p-0.5">
                 <div
                   className={`h-full rounded-full transition-all duration-700 ${
-                    prediction.confidence_percent >= 75
+                    (prediction?.confidence_percent ?? 0) >= 75
                       ? 'bg-emerald-500'
-                      : prediction.confidence_percent >= 45
+                      : (prediction?.confidence_percent ?? 0) >= 45
                       ? 'bg-amber-500'
                       : 'bg-red-500'
                   }`}
-                  style={{ width: `${prediction.confidence_percent}%` }}
+                  style={{ width: `${prediction?.confidence_percent ?? 0}%` }}
                 />
               </div>
             </div>
 
             {/* Badges */}
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${getConfidenceBadgeClass(prediction.confidence_level)}`}>
-                {prediction.confidence_level}
+              <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${getConfidenceBadgeClass(prediction?.confidence_level ?? 'Moderate Confidence')}`}>
+                {prediction?.confidence_level}
               </span>
               {model && (
                 <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-elevated border border-subtle text-xs font-medium text-secondary-color">
@@ -470,7 +405,7 @@ export const ResultView: React.FC<ResultViewProps> = ({
           </div>
 
           {/* Top Candidates Collapsible */}
-          {prediction.top_candidates.length > 1 && (
+          {prediction && prediction.top_candidates && prediction.top_candidates.length > 1 && (
             <div className="mt-4 pt-3 border-t border-subtle">
               <button
                 type="button"
@@ -557,92 +492,94 @@ export const ResultView: React.FC<ResultViewProps> = ({
       </div>
 
       {/* "Why this prediction?" Explainability Card */}
-      <div className="bg-surface border border-subtle rounded-3xl p-5 sm:p-6 custom-shadow space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Activity className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            <h4 className="text-base font-bold text-primary-color">
-              Why this prediction? — Interpretability & Uncertainty Analysis
-            </h4>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowAuditDrawer(!showAuditDrawer)}
-            className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
-          >
-            <Clock className="w-3.5 h-3.5" />
-            <span>{showAuditDrawer ? 'Hide Timings & Audit' : 'View Timings & Audit'}</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <div className="p-3 rounded-2xl bg-surface-elevated border border-subtle">
-            <span className="text-[10px] font-bold uppercase text-muted-color block mb-0.5">Shannon Entropy</span>
-            <span className="text-sm font-bold text-primary-color">{prediction.entropy}</span>
-            <span className="text-[10px] text-muted-color block mt-0.5">
-              {prediction.entropy < 1.0 ? '✓ High certainty' : 'Uncertain spread'}
-            </span>
+      {prediction && (
+        <div className="bg-surface border border-subtle rounded-3xl p-5 sm:p-6 custom-shadow space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <h4 className="text-base font-bold text-primary-color">
+                Why this prediction? — Interpretability & Uncertainty Analysis
+              </h4>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAuditDrawer(!showAuditDrawer)}
+              className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>{showAuditDrawer ? 'Hide Timings & Audit' : 'View Timings & Audit'}</span>
+            </button>
           </div>
 
-          <div className="p-3 rounded-2xl bg-surface-elevated border border-subtle">
-            <span className="text-[10px] font-bold uppercase text-muted-color block mb-0.5">Top-1 / Top-2 Margin</span>
-            <span className="text-sm font-bold text-primary-color">{prediction.top1_top2_margin}</span>
-            <span className="text-[10px] text-muted-color block mt-0.5">
-              {prediction.top1_top2_margin > 0.40 ? '✓ Distinct margin' : 'Close competitor'}
-            </span>
-          </div>
-
-          <div className="p-3 rounded-2xl bg-surface-elevated border border-subtle">
-            <span className="text-[10px] font-bold uppercase text-muted-color block mb-0.5">Calibrated Confidence</span>
-            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{prediction.confidence_percent}%</span>
-            <span className="text-[10px] text-muted-color block mt-0.5">Raw Softmax: {(prediction.raw_confidence * 100).toFixed(1)}%</span>
-          </div>
-
-          <div className="p-3 rounded-2xl bg-surface-elevated border border-subtle">
-            <span className="text-[10px] font-bold uppercase text-muted-color block mb-0.5">Model Temperature</span>
-            <span className="text-sm font-bold text-primary-color">T = {audit?.temperature_applied ?? 1.15}</span>
-            <span className="text-[10px] text-muted-color block mt-0.5">ECE: 3.8%</span>
-          </div>
-        </div>
-
-        {/* Collapsible ML Audit & Micro-Timings Drawer */}
-        {showAuditDrawer && audit && (
-          <div className="mt-4 p-4 rounded-2xl bg-surface-subtle border border-subtle text-xs space-y-3 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between font-mono text-[11px] text-muted-color pb-2 border-b border-subtle">
-              <span>Request ID: {audit.request_id}</span>
-              <span>Model ID: {audit.model_id} (v{audit.model_version})</span>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="p-3 rounded-2xl bg-surface-elevated border border-subtle">
+              <span className="text-[10px] font-bold uppercase text-muted-color block mb-0.5">Shannon Entropy</span>
+              <span className="text-sm font-bold text-primary-color">{prediction.entropy}</span>
+              <span className="text-[10px] text-muted-color block mt-0.5">
+                {prediction.entropy < 1.0 ? '✓ High certainty' : 'Uncertain spread'}
+              </span>
             </div>
 
-            <div className="space-y-1.5">
-              <span className="font-bold text-secondary-color block">Inference Stage Micro-Timings:</span>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono text-[11px]">
-                <div className="p-2 rounded-xl bg-surface border border-subtle">
-                  Validation: <span className="font-bold">{audit.performance_metrics.image_validation_ms} ms</span>
-                </div>
-                <div className="p-2 rounded-xl bg-surface border border-subtle">
-                  Preprocessing: <span className="font-bold">{audit.performance_metrics.preprocessing_ms} ms</span>
-                </div>
-                <div className="p-2 rounded-xl bg-surface border border-subtle">
-                  Model Inference: <span className="font-bold">{audit.performance_metrics.model_inference_ms} ms</span>
-                </div>
-                <div className="p-2 rounded-xl bg-surface border border-subtle">
-                  Grad-CAM: <span className="font-bold">{audit.performance_metrics.gradcam_ms} ms</span>
-                </div>
-                <div className="p-2 rounded-xl bg-surface border border-subtle">
-                  Knowledge DB: <span className="font-bold">{audit.performance_metrics.disease_metadata_lookup_ms} ms</span>
-                </div>
-                <div className="p-2 rounded-xl bg-surface border border-subtle text-emerald-600 font-bold">
-                  Total Request: <span>{audit.performance_metrics.total_request_ms} ms</span>
+            <div className="p-3 rounded-2xl bg-surface-elevated border border-subtle">
+              <span className="text-[10px] font-bold uppercase text-muted-color block mb-0.5">Top-1 / Top-2 Margin</span>
+              <span className="text-sm font-bold text-primary-color">{prediction.top1_top2_margin}</span>
+              <span className="text-[10px] text-muted-color block mt-0.5">
+                {prediction.top1_top2_margin > 0.40 ? '✓ Distinct margin' : 'Close competitor'}
+              </span>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-surface-elevated border border-subtle">
+              <span className="text-[10px] font-bold uppercase text-muted-color block mb-0.5">Calibrated Confidence</span>
+              <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{prediction.confidence_percent}%</span>
+              <span className="text-[10px] text-muted-color block mt-0.5">Raw Softmax: {(prediction.raw_confidence * 100).toFixed(1)}%</span>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-surface-elevated border border-subtle">
+              <span className="text-[10px] font-bold uppercase text-muted-color block mb-0.5">Model Temperature</span>
+              <span className="text-sm font-bold text-primary-color">T = {audit?.temperature_applied ?? 1.15}</span>
+              <span className="text-[10px] text-muted-color block mt-0.5">ECE: 3.8%</span>
+            </div>
+          </div>
+
+          {/* Collapsible ML Audit & Micro-Timings Drawer */}
+          {showAuditDrawer && audit && (
+            <div className="mt-4 p-4 rounded-2xl bg-surface-subtle border border-subtle text-xs space-y-3 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between font-mono text-[11px] text-muted-color pb-2 border-b border-subtle">
+                <span>Request ID: {audit.request_id}</span>
+                <span>Model ID: {audit.model_id} (v{audit.model_version})</span>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="font-bold text-secondary-color block">Inference Stage Micro-Timings:</span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono text-[11px]">
+                  <div className="p-2 rounded-xl bg-surface border border-subtle">
+                    Validation: <span className="font-bold">{audit.performance_metrics.image_validation_ms} ms</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-surface border border-subtle">
+                    Preprocessing: <span className="font-bold">{audit.performance_metrics.preprocessing_ms} ms</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-surface border border-subtle">
+                    Model Inference: <span className="font-bold">{audit.performance_metrics.model_inference_ms} ms</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-surface border border-subtle">
+                    Grad-CAM: <span className="font-bold">{audit.performance_metrics.gradcam_ms} ms</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-surface border border-subtle">
+                    Knowledge DB: <span className="font-bold">{audit.performance_metrics.disease_metadata_lookup_ms} ms</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-surface border border-subtle text-emerald-600 font-bold">
+                    Total Request: <span>{audit.performance_metrics.total_request_ms} ms</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <p className="text-[10px] text-muted-color pt-1">
-              <strong>Interpretability Disclaimer:</strong> Grad-CAM highlights image regions containing influential visual features. It represents statistical correlation rather than definitive medical etiology.
-            </p>
-          </div>
-        )}
-      </div>
+              <p className="text-[10px] text-muted-color pt-1">
+                <strong>Interpretability Disclaimer:</strong> Grad-CAM highlights image regions containing influential visual features. It represents statistical correlation rather than definitive medical etiology.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Gemini AI Care Assistant Synthesis Card */}
       {explanation && (
