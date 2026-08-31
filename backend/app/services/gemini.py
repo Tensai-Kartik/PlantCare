@@ -1,17 +1,17 @@
 """
 Gemini AI Explanation & Multimodal Verification Layer for PlantCare
 Provides natural-language interpretations, care advice, explanation caching,
-and conditional multimodal vision verification according to a strict hierarchy.
+and simultaneous multimodal vision verification and cross-referencing.
 """
 
 import json
 from io import BytesIO
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from PIL import Image
 
 from app.core.config import settings
 from app.schemas.analysis import GeminiExplanation
-from app.schemas.disease import DiseaseInfo
+from app.schemas.disease import DiseaseInfo, TreatmentGuide
 
 class GeminiService:
     def __init__(self):
@@ -25,20 +25,20 @@ class GeminiService:
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=self.api_key)
-                self._client = genai.GenerativeModel("gemini-1.5-flash")
-                print("Gemini AI service initialized successfully.")
+                self._client = genai.GenerativeModel(settings.GEMINI_MODEL)
+                print(f"Gemini AI service ({settings.GEMINI_MODEL}) initialized successfully.")
             except Exception as e:
                 print(f"Failed to initialize Gemini AI: {e}")
                 self._client = None
         else:
             print("No GEMINI_API_KEY provided; operating in local fallback mode.")
 
+    def is_available(self) -> bool:
+        return self._client is not None
+
     def should_verify_with_vision(self, plant_val_status: str, plant_confidence: float) -> bool:
         """
-        Determines whether Gemini Vision should be invoked based on the configured validation hierarchy:
-        1. "never": Never call Gemini Vision (purely local verification)
-        2. "ambiguity_only": Call only when status is 'warning' or confidence is borderline
-        3. "always": Call on all images if client available
+        Determines whether Gemini Vision should be invoked based on the configured validation hierarchy.
         """
         if not self._client:
             return False
@@ -50,6 +50,51 @@ class GeminiService:
             return True
         else:  # "ambiguity_only"
             return plant_val_status == "warning" or (40.0 <= plant_confidence <= 75.0)
+
+    def analyze_plant_multimodal(self, image_bytes: bytes) -> Optional[Dict[str, Any]]:
+        """
+        Executes zero-shot multimodal agricultural pathology diagnosis on the plant leaf image.
+        """
+        if not self._client:
+            return None
+
+        try:
+            pil_image = Image.open(BytesIO(image_bytes)).convert("RGB")
+            prompt = """You are an expert plant pathologist and AI agronomist for PlantCare.
+Analyze this leaf image carefully. Identify the host plant species and diagnose the exact health condition, disease, pest, or nutrient deficiency.
+Respond ONLY in valid raw JSON with this exact schema:
+{
+  "plant": "Host plant common name (e.g. Tomato, Potato, Apple, Rose, Mango, Lemon, Corn, Grape, Monstera)",
+  "scientific_name": "Botanical species name if known",
+  "condition_name": "Diagnosed condition (e.g. Early Blight, Late Blight, Black Spot, Anthracnose, Nitrogen Deficiency, Healthy)",
+  "is_healthy": false,
+  "severity": "Low / Moderate / High / Critical / Healthy",
+  "confidence_percent": 95.0,
+  "symptoms": ["Symptom 1 with visual lesion description", "Symptom 2", "Symptom 3"],
+  "causes": ["Pathogen or environmental trigger 1", "Trigger 2"],
+  "treatment": {
+    "immediate_steps": ["Action step 1", "Action step 2"],
+    "organic_options": ["Organic low-impact remedy 1", "Organic remedy 2"],
+    "conventional_options": ["Standard agricultural treatment 1", "Treatment 2"]
+  },
+  "prevention": ["Cultural prevention practice 1", "Prevention practice 2"],
+  "important_notes": ["Agronomic advisory note 1"],
+  "agronomist_summary": "1-2 concise sentences summarizing the diagnosis and urgency."
+}"""
+
+            response = self._client.generate_content([prompt, pil_image], request_options={"timeout": 6.0})
+            text = response.text.strip()
+            if text.startswith("```json"):
+                text = text[7:]
+            if text.startswith("```"):
+                text = text[3:]
+            if text.endswith("```"):
+                text = text[:-3]
+            data = json.loads(text.strip())
+            return data
+        except Exception as e:
+            print(f"Gemini multimodal vision diagnosis error: {e}")
+            return None
 
     def verify_image_is_plant(self, image_bytes: bytes) -> Optional[Dict[str, Any]]:
         """
@@ -74,10 +119,12 @@ Respond in raw JSON only with EXACTLY this structure:
   "reason": "1 concise sentence explaining the subject and whether it is a plant specimen."
 }
 """
-            response = self._client.generate_content([prompt, pil_image])
+            response = self._client.generate_content([prompt, pil_image], request_options={"timeout": 6.0})
             text = response.text.strip()
             if text.startswith("```json"):
                 text = text[7:]
+            if text.startswith("```"):
+                text = text[3:]
             if text.endswith("```"):
                 text = text[:-3]
             data = json.loads(text.strip())
@@ -98,39 +145,10 @@ Respond in raw JSON only with EXACTLY this structure:
         Generates a concise, structured AI pathology explanation with in-memory caching.
         Uses Gemini if configured, otherwise synthesizes from the local curated pathology knowledge base.
         """
-        # 1. Check in-memory cache
         cache_key = f"{plant}_{predicted_condition}_{int(confidence_percent // 10)}_{state}"
         if cache_key in self._explanation_cache:
             return self._explanation_cache[cache_key]
 
-        # 2. Case: Uncertain condition or unsupported disease state
-        if state == "plant_uncertain":
-            summary = f"A botanical {plant} specimen was recognized, but the model has uncertainty between multiple candidate conditions."
-            interpretation = "Diffuse lesion patterns, uneven lighting, or overlapping leaves can create ambiguity across similar fungal/bacterial symptoms."
-            care_rec = "1. Re-photograph a single flat leaf with direct natural lighting.\n2. Inspect both top and underside of leaves for distinct fungal spores or concentric rings."
-            exp = GeminiExplanation(
-                summary=summary,
-                interpretation=interpretation,
-                care_recommendation=care_rec,
-                powered_by_gemini=False
-            )
-            self._explanation_cache[cache_key] = exp
-            return exp
-
-        if state == "plant_unsupported_condition":
-            summary = f"Plant specimen recognized ({plant}), but this specific disease appears outside PlantCare's 21 supported conditions."
-            interpretation = "The leaf exhibits visual stress or chlorosis that does not confidently map to any known benchmark disease pattern."
-            care_rec = "1. Consult local agricultural extension services for specialized laboratory tissue culture testing.\n2. Ensure soil moisture and balanced N-P-K nutrient feeding."
-            exp = GeminiExplanation(
-                summary=summary,
-                interpretation=interpretation,
-                care_recommendation=care_rec,
-                powered_by_gemini=False
-            )
-            self._explanation_cache[cache_key] = exp
-            return exp
-
-        # 3. Try Gemini API for known conditions if client available
         if self._client and disease_info:
             try:
                 prompt = f"""
@@ -148,18 +166,18 @@ Generate a concise, professional JSON response with EXACTLY the following format
 {{
   "summary": "1-2 sentences summarizing the diagnosis and urgency.",
   "interpretation": "2 sentences explaining why these symptoms occur and the environmental triggers.",
-  "care_recommendation": "2 concise bulleted actionable next steps for the grower."
+  "care_recommendation": "Bullet points with actionable organic and conventional steps."
 }}
-Output raw valid JSON only without markdown formatting.
 """
-                response = self._client.generate_content(prompt)
+                response = self._client.generate_content(prompt, request_options={"timeout": 6.0})
                 text = response.text.strip()
                 if text.startswith("```json"):
                     text = text[7:]
+                if text.startswith("```"):
+                    text = text[3:]
                 if text.endswith("```"):
                     text = text[:-3]
                 data = json.loads(text.strip())
-
                 exp = GeminiExplanation(
                     summary=data.get("summary", ""),
                     interpretation=data.get("interpretation", ""),
@@ -169,28 +187,17 @@ Output raw valid JSON only without markdown formatting.
                 self._explanation_cache[cache_key] = exp
                 return exp
             except Exception as e:
-                print(f"Gemini API generation failed ({e}); using local synthesis fallback.")
+                print(f"Gemini API explanation generation failed: {e}")
 
-        # 4. Curated local fallback synthesis
-        if disease_info and disease_info.is_healthy:
-            summary = f"The {plant} specimen appears in excellent health with no noticeable pathogen lesions."
-            interpretation = "Vibrant green coloration and intact leaf margin structure indicate balanced irrigation and favorable growing conditions."
-            care_rec = "Continue regular ground-level watering and weekly monitoring to sustain peak vegetative vigor."
-        elif disease_info:
-            summary = f"{predicted_condition} identified on {plant} with {confidence_percent:.1f}% confidence. Severity level is {disease_info.severity.lower()}."
-            interpretation = f"Infection is typically driven by {', '.join(disease_info.causes[:2]) if disease_info.causes else 'environmental moisture'}. Look for {disease_info.symptoms[0] if disease_info.symptoms else 'leaf spotting'}."
-            imm_step = disease_info.treatment.immediate_steps[0] if disease_info.treatment.immediate_steps else "Prune affected leaves."
-            org_step = disease_info.treatment.organic_options[0] if disease_info.treatment.organic_options else "Apply preventive bio-fungicide."
-            care_rec = f"1. {imm_step}\n2. {org_step}"
-        else:
-            summary = f"Condition diagnosed as {predicted_condition} on {plant} ({confidence_percent:.1f}% confidence)."
-            interpretation = "Symptoms are consistent with localized foliar tissue discoloration."
-            care_rec = "1. Isolate the affected plant.\n2. Monitor for further spreading to adjacent foliage."
+        # Local synthesis fallback
+        symptoms_text = f"Visual indicators include {', '.join(disease_info.symptoms[:2])}." if disease_info else "Foliar discoloration detected."
+        causes_text = f"Commonly triggered by {', '.join(disease_info.causes[:2])}." if disease_info else "Environmental stress or pathogen infection."
+        care_text = "\n".join([f"• {step}" for step in (disease_info.treatment.immediate_steps[:2] if disease_info else ["Isolate plant", "Prune damaged foliage"])])
 
         exp = GeminiExplanation(
-            summary=summary,
-            interpretation=interpretation,
-            care_recommendation=care_rec,
+            summary=f"Pathology scan indicates {predicted_condition} on {plant} foliage with {confidence_percent:.1f}% confidence.",
+            interpretation=f"{symptoms_text} {causes_text}",
+            care_recommendation=care_text,
             powered_by_gemini=False
         )
         self._explanation_cache[cache_key] = exp

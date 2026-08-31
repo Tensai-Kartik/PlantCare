@@ -26,7 +26,10 @@ class Settings(BaseSettings):
 
     # LLM Settings
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+
+    # Multi-Model Consensus Default
+    ENABLE_MULTI_MODEL_CONSENSUS: bool = True
 
     # Confidence & Uncertainty Thresholds
     CONFIDENCE_HIGH: float = 0.75
@@ -51,7 +54,7 @@ class Settings(BaseSettings):
     MULTI_LEAF_CONTOUR_THRESHOLD: int = 3        # Threshold for warning about multiple leaves
     
     # Gemini Vision Hierarchy ("never", "ambiguity_only", "always")
-    GEMINI_VISION_MODE: str = os.getenv("GEMINI_VISION_MODE", "ambiguity_only")
+    GEMINI_VISION_MODE: str = os.getenv("GEMINI_VISION_MODE", "always")
 
     # Resource Protection & Rate Limiting (Free-Tier Safe)
     RATE_LIMIT_PER_MINUTE: int = 60
@@ -60,8 +63,7 @@ class Settings(BaseSettings):
     REQUEST_TIMEOUT_SECONDS: float = 30.0
 
     class Config:
-        env_file = ".env"
+        env_file = str(PROJECT_ROOT / ".env")
         extra = "ignore"
 
 settings = Settings()
-

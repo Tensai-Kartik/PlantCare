@@ -249,6 +249,7 @@ export const ResultView: React.FC<ResultViewProps> = ({
   const getConfidenceBadgeClass = (level: string) => {
     switch (level) {
       case 'High Confidence':
+      case 'AI Vision Verified':
         return 'bg-emerald-100 text-emerald-800 dark:bg-zinc-800 dark:text-emerald-300';
       case 'Moderate Confidence':
         return 'bg-amber-100 text-amber-800 dark:bg-zinc-800 dark:text-amber-300';
@@ -261,14 +262,14 @@ export const ResultView: React.FC<ResultViewProps> = ({
     { id: 'overview', label: 'Overview' },
     { id: 'symptoms', label: 'Symptoms' },
     { id: 'causes', label: 'Causes' },
-    { id: 'treatment', label: 'Treatment' },
+    { id: 'treatment', label: 'Treatment Guide' },
     { id: 'prevention', label: 'Prevention' },
     { id: 'important', label: 'Important' }
   ];
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300">
-      {/* Multi-Model Consensus Banner (If enabled) */}
+      {/* Multi-Model Consensus & AI Vision Cross-Verification Banner */}
       {comparison && (
         <div className={`p-4 rounded-3xl border flex items-center justify-between gap-4 ${
           comparison.agreement_status === 'AGREED'
@@ -277,17 +278,18 @@ export const ResultView: React.FC<ResultViewProps> = ({
         }`}>
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-xl text-white ${comparison.agreement_status === 'AGREED' ? 'bg-emerald-600' : 'bg-amber-600'}`}>
-              <Scale className="w-4 h-4" />
+              <Layers className="w-4 h-4" />
             </div>
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider block opacity-75">
-                Multi-Model Verification Consensus
+                Multi-Model & AI Vision Verification Consensus
               </span>
               <p className="text-xs sm:text-sm font-bold">
-                {comparison.agreement_status === 'AGREED'
-                  ? `Consensus Confirmed: Both EfficientNet-B0 & MobileNetV3-Small agree on "${comparison.consensus_prediction}"`
-                  : `Model Disagreement: EfficientNet-B0 & MobileNetV3-Small produced divergent predictions (Delta: ${comparison.confidence_delta_percent}%)`
-                }
+                {comparison.message || (
+                  comparison.agreement_status === 'AGREED'
+                    ? `Consensus Confirmed: Models agree on "${comparison.consensus_prediction}"`
+                    : 'Model Disagreement: Vision models produced divergent predictions'
+                )}
               </p>
             </div>
           </div>
@@ -363,54 +365,42 @@ export const ResultView: React.FC<ResultViewProps> = ({
               {prediction?.name}
             </h3>
             {prediction?.scientific_name && (
-              <p className="text-xs sm:text-sm text-muted-color italic mt-0.5">
-                ({prediction.scientific_name})
-              </p>
+              <span className="text-xs italic text-muted-color block mt-0.5">
+                {prediction.scientific_name}
+              </span>
             )}
 
-            {/* Confidence Score Bar */}
-            <div className="mt-5 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-secondary-color">Calibrated Confidence</span>
-                <span className="text-base font-black text-emerald-600 dark:text-emerald-400">
-                  {prediction?.confidence_percent}%
-                </span>
-              </div>
-              <div className="w-full h-3 rounded-full bg-surface-elevated overflow-hidden border border-subtle p-0.5">
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ${
-                    (prediction?.confidence_percent ?? 0) >= 75
-                      ? 'bg-emerald-500'
-                      : (prediction?.confidence_percent ?? 0) >= 45
-                      ? 'bg-amber-500'
-                      : 'bg-red-500'
-                  }`}
-                  style={{ width: `${prediction?.confidence_percent ?? 0}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Badges */}
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${getConfidenceBadgeClass(prediction?.confidence_level ?? 'Moderate Confidence')}`}>
+            <div className="flex items-center gap-2 mt-4">
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${getConfidenceBadgeClass(prediction?.confidence_level || '')}`}>
                 {prediction?.confidence_level}
               </span>
-              {model && (
-                <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-elevated border border-subtle text-xs font-medium text-secondary-color">
-                  <Cpu className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>{model.name} (v{model.version || '1.2.0'})</span>
-                </span>
-              )}
+              <span className="text-xs font-semibold text-muted-color">
+                {prediction?.confidence_percent}% Calibrated
+              </span>
+            </div>
+
+            {/* Confidence Progress Bar */}
+            <div className="w-full bg-surface-subtle rounded-full h-2.5 mt-3 overflow-hidden border border-subtle">
+              <div 
+                className={`h-full rounded-full transition-all duration-500 ${
+                  prediction?.is_healthy 
+                    ? 'bg-emerald-500' 
+                    : (prediction?.confidence_percent || 0) > 70 
+                      ? 'bg-amber-500' 
+                      : 'bg-red-500'
+                }`}
+                style={{ width: `${prediction?.confidence_percent || 0}%` }}
+              />
             </div>
           </div>
 
-          {/* Top Candidates Collapsible */}
+          {/* Top-3 Candidates Collapsible */}
           {prediction && prediction.top_candidates && prediction.top_candidates.length > 1 && (
-            <div className="mt-4 pt-3 border-t border-subtle">
+            <div className="pt-3 border-t border-subtle mt-4">
               <button
                 type="button"
                 onClick={() => setShowCandidates(!showCandidates)}
-                className="w-full flex items-center justify-between text-[11px] font-semibold text-secondary-color hover:text-primary-color cursor-pointer"
+                className="w-full flex items-center justify-between text-xs font-medium text-muted-color hover:text-primary-color transition-colors cursor-pointer"
               >
                 <span>Possible Matches & Probabilities</span>
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showCandidates ? 'rotate-180' : ''}`} />
@@ -698,9 +688,11 @@ export const ResultView: React.FC<ResultViewProps> = ({
               </h4>
               <div className="space-y-2.5">
                 {disease.symptoms.map((symptom, idx) => (
-                  <div key={idx} className="flex items-start gap-3 p-3 rounded-2xl bg-surface-elevated border border-subtle">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span className="text-xs sm:text-sm text-secondary-color">{symptom}</span>
+                  <div key={idx} className="flex items-start gap-3 p-3.5 rounded-2xl bg-surface-elevated border border-subtle">
+                    <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                      {idx + 1}
+                    </span>
+                    <span className="text-xs sm:text-sm text-secondary-color leading-relaxed">{symptom}</span>
                   </div>
                 ))}
               </div>
@@ -711,41 +703,41 @@ export const ResultView: React.FC<ResultViewProps> = ({
           {activeTab === 'causes' && (
             <div className="space-y-4 animate-in fade-in duration-200">
               <h4 className="text-sm font-bold text-primary-color">
-                Environmental & Pathogenic Triggers
+                Pathogen Profile & Disease Triggers
               </h4>
               <div className="space-y-2.5">
                 {disease.causes.map((cause, idx) => (
-                  <div key={idx} className="flex items-start gap-3 p-3 rounded-2xl bg-surface-elevated border border-subtle">
-                    <div className="w-2 h-2 rounded-full bg-amber-500 shrink-0 mt-1.5" />
-                    <span className="text-xs sm:text-sm text-secondary-color">{cause}</span>
+                  <div key={idx} className="flex items-start gap-3 p-3.5 rounded-2xl bg-surface-elevated border border-subtle">
+                    <Info className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span className="text-xs sm:text-sm text-secondary-color leading-relaxed">{cause}</span>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Tab 4: Treatment */}
+          {/* Tab 4: Treatment Guide */}
           {activeTab === 'treatment' && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              {/* Immediate Emergency Steps */}
+              {/* Immediate Steps */}
               {disease.treatment.immediate_steps.length > 0 && (
-                <div className="p-4 rounded-2xl bg-red-50/50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 space-y-2">
-                  <span className="font-bold text-xs uppercase tracking-wider text-red-700 dark:text-red-300 flex items-center gap-1.5">
-                    <ShieldAlert className="w-4 h-4" />
-                    Immediate Quarantine & Emergency Steps
-                  </span>
-                  <ul className="space-y-1.5 text-xs text-red-950 dark:text-red-200">
+                <div className="space-y-3">
+                  <h4 className="text-sm font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4" />
+                    Immediate Emergency Action Protocol
+                  </h4>
+                  <div className="space-y-2">
                     {disease.treatment.immediate_steps.map((step, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="font-bold shrink-0">•</span>
-                        <span>{step}</span>
-                      </li>
+                      <div key={i} className="flex items-start gap-3 p-3 rounded-2xl bg-red-50/60 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40">
+                        <span className="font-bold text-xs text-red-600 dark:text-red-400 shrink-0 mt-0.5">Step {i + 1}:</span>
+                        <span className="text-xs sm:text-sm text-red-950 dark:text-red-200">{step}</span>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               )}
 
-              {/* Organic Remedies */}
+              {/* Organic Solutions */}
               {disease.treatment.organic_options.length > 0 && (
                 <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 space-y-2">
                   <span className="font-bold text-xs uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">

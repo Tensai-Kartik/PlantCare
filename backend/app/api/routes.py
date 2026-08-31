@@ -91,7 +91,8 @@ async def health_check():
         "version": settings.VERSION,
         "default_model": model_registry.default_model_id,
         "calibration_enabled": settings.ENABLE_TEMPERATURE_CALIBRATION,
-        "gemini_vision_mode": settings.GEMINI_VISION_MODE
+        "gemini_vision_mode": settings.GEMINI_VISION_MODE,
+        "multi_model_consensus": settings.ENABLE_MULTI_MODEL_CONSENSUS
     }
 
 @router.get("/models", response_model=ModelListResponse, summary="List Available AI Models")
@@ -143,7 +144,7 @@ async def analyze_plant_leaf(
     file: UploadFile = File(...),
     model_id: Optional[str] = Form(None),
     skip_quality_check: bool = Form(False),
-    enable_model_comparison: bool = Form(False)
+    enable_model_comparison: bool = Form(True)
 ):
     client_ip = request.client.host if request.client else "127.0.0.1"
     if not await rate_limiter.check(client_ip):
@@ -216,12 +217,10 @@ async def get_examples():
 async def analyze_example(
     example_id: str,
     model_id: Optional[str] = Query(None),
-    enable_model_comparison: bool = Query(False)
+    enable_model_comparison: bool = Query(True)
 ):
-    # Locate sample in backend static dir or dataset
     sample_path = settings.STATIC_DIR / "examples" / f"{example_id}.jpg"
     if not sample_path.exists():
-        # Fallback to dataset raw
         sample_path = settings.BASE_DIR.parent / "ml" / "dataset" / "raw" / example_id / "leaf_0001.jpg"
 
     if not sample_path.exists():

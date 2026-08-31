@@ -78,7 +78,7 @@ export interface PredictionResult {
   raw_confidence: number;
   calibrated_confidence: number;
   confidence_percent: number;
-  confidence_level: 'High Confidence' | 'Moderate Confidence' | 'Low Confidence';
+  confidence_level: 'High Confidence' | 'Moderate Confidence' | 'Low Confidence' | 'AI Vision Verified' | string;
   entropy: number;
   top1_top2_margin: number;
   is_healthy: boolean;
@@ -117,18 +117,21 @@ export interface PredictionAudit {
 export interface ModelComparisonEntry {
   model_id: string;
   model_name: string;
-  architecture: string;
+  architecture?: string;
   predicted_class_id: string;
   predicted_name: string;
-  confidence: number;
+  confidence?: number;
   confidence_percent: number;
-  latency_ms: number;
+  latency_ms?: number;
 }
 
 export interface ModelDisagreementResult {
-  agreement_status: 'AGREED' | 'DISAGREED';
-  consensus_prediction: string;
-  confidence_delta_percent: number;
+  enabled?: boolean;
+  agreement_status: 'AGREED' | 'DISAGREED' | string;
+  models_agree?: boolean;
+  consensus_prediction?: string | null;
+  confidence_delta_percent?: number;
+  message?: string;
   comparison: ModelComparisonEntry[];
 }
 
@@ -169,7 +172,7 @@ export interface DiseaseInfo {
   description: string;
   symptoms: string[];
   causes: string[];
-  severity: 'Healthy' | 'Low' | 'Moderate' | 'High' | 'Critical';
+  severity: 'Healthy' | 'Low' | 'Moderate' | 'High' | 'Critical' | string;
   spread?: string;
   image_url?: string;
   treatment: TreatmentDetails;

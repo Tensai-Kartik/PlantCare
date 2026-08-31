@@ -10,6 +10,9 @@ class TreatmentDetails(BaseModel):
     organic_options: List[str] = Field(default_factory=list, description="Eco-friendly / bio-control remedies")
     conventional_options: List[str] = Field(default_factory=list, description="Standard agricultural chemicals / fungicides")
 
+# Alias for compatibility
+TreatmentGuide = TreatmentDetails
+
 class DiseaseInfo(BaseModel):
     id: str
     name: str
@@ -25,6 +28,7 @@ class DiseaseInfo(BaseModel):
     treatment: TreatmentDetails
     prevention: List[str] = Field(default_factory=list)
     important_notes: List[str] = Field(default_factory=list)
+    favorable_conditions: Optional[str] = None
 
 class DiseaseListResponse(BaseModel):
     total: int
