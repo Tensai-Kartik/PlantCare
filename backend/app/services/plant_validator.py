@@ -288,13 +288,14 @@ class PlantPresenceValidator:
         background_ratio = round(max(0.0, 1.0 - foliage_ratio), 3)
 
         # ---------------------------------------------------------
-        # Signal 2: Geometric Straight-Line & Contour Density
+        # Signal 2: Geometric Line & Edge Analysis (Canny + Hough)
         # ---------------------------------------------------------
-        gray = cv2.cvtColor(cv_img, cv2.COLOR_RGB2GRAY)
-        edges = cv2.Canny(gray, 50, 150)
-        lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=45, minLineLength=35, maxLineGap=10)
+        gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
+        edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+        lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=80, minLineLength=40, maxLineGap=10)
+        
         line_count = len(lines) if lines is not None else 0
-        img_diag = np.sqrt(width**2 + height**2)
+        img_diag = float(np.sqrt(width**2 + height**2))
         total_line_length = 0.0
         if lines is not None:
             for l in lines:
@@ -366,51 +367,12 @@ class PlantPresenceValidator:
         }
 
         # ---------------------------------------------------------
-        # Decision Logic: Botanical Hierarchy
-        # ---------------------------------------------------------
-        # A. Does the image have authentic botanical vegetative tissue?
-        # A genuine plant leaf has active chlorophyll green and significant foliage area.
-        has_organic_plant_tissue = (
-            (green_ratio >= 0.035 and foliage_ratio >= 0.12) or
-            (green_ratio >= 0.025 and exg_ratio >= 0.05 and foliage_ratio >= 0.12) or
-            (green_ratio >= 0.05)
-        )
-
-        if has_organic_plant_tissue:
-            # ---------------------------------------------------------
-            # PASS: Valid Plant / Leaf Specimen Confirmed
-            # ---------------------------------------------------------
-            plant_score = min(99.5, max(85.0, 75.0 + (foliage_ratio * 25.0)))
-            
-            val_status = "suitable"
-            primary_reason_code = "SUITABLE_PLANT"
-            if len(focus_warnings) > 0:
-                val_status = "warning"
-                primary_reason_code = focus_warnings[0]
-
-            return PlantValidationResult(
-                is_plant=True,
-                status=val_status,
-                detected_subject="Plant Leaf / Crop Specimen",
-                subject_category="plant",
-                plant_confidence=round(plant_score, 1),
-                reason_code=primary_reason_code,
-                warnings=focus_warnings,
-                has_multiple_leaves=has_multi,
-                leaf_count_estimate=leaf_est,
-                leaf_focus_status=focus_status,
-                rejection_reason=None,
-                foliage_ratio=round(foliage_ratio * 100.0, 1),
-                background_ratio=background_ratio,
-                metrics=metrics_dict
-            )
-
-        # ---------------------------------------------------------
-        # B. Non-Plant Object Vetoes (Triggered strictly when no plant foliage exists)
+        # Decision Logic: Strict Botanical Guardrail Hierarchy
         # ---------------------------------------------------------
         clean_name = top_name.replace("_", " ").title()
 
-        # 1. Definite Vehicle Veto
+        # Step 1: Definite Non-Plant Semantic Vetoes (Vehicles, Electronics, Animals, Furniture)
+        # 1. Vehicle / Automobile Veto (e.g. rusted cars, trucks, bikes, boats, planes)
         if p_veh > 0.20 or top_idx in self._group_indices.get("vehicle", []):
             return PlantValidationResult(
                 is_plant=False,
@@ -423,32 +385,13 @@ class PlantPresenceValidator:
                 has_multiple_leaves=False,
                 leaf_count_estimate=0,
                 leaf_focus_status="non_plant",
-                rejection_reason=f"The uploaded image was identified as a vehicle ({clean_name}, {top_prob*100:.1f}% confidence), not a plant or leaf.",
+                rejection_reason=f"The uploaded image was verified as a vehicle ({clean_name}, {max(top_prob, p_veh)*100:.1f}% confidence), not a plant specimen.",
                 foliage_ratio=round(foliage_ratio * 100.0, 1),
                 background_ratio=background_ratio,
                 metrics=metrics_dict
             )
 
-        # 2. Definite Animal / Pet Veto
-        if p_anim > 0.25 or top_idx in self._group_indices.get("animal", []):
-            return PlantValidationResult(
-                is_plant=False,
-                status="rejected",
-                detected_subject=f"Animal / Pet ({clean_name})",
-                subject_category="animal",
-                plant_confidence=round(max(0.0, 1.0 - p_anim) * 10.0, 1),
-                reason_code="NON_PLANT_OBJECT",
-                warnings=["NON_PLANT_ANIMAL"],
-                has_multiple_leaves=False,
-                leaf_count_estimate=0,
-                leaf_focus_status="non_plant",
-                rejection_reason=f"The uploaded image appears to be an animal or pet ({clean_name}, {top_prob*100:.1f}% confidence).",
-                foliage_ratio=round(foliage_ratio * 100.0, 1),
-                background_ratio=background_ratio,
-                metrics=metrics_dict
-            )
-
-        # 3. Definite Electronic Device Veto
+        # 2. Electronic Device Veto (e.g. phones, laptops, TVs, clocks, speakers)
         if p_elec > 0.20 or top_idx in self._group_indices.get("electronics", []):
             return PlantValidationResult(
                 is_plant=False,
@@ -461,7 +404,26 @@ class PlantPresenceValidator:
                 has_multiple_leaves=False,
                 leaf_count_estimate=0,
                 leaf_focus_status="non_plant",
-                rejection_reason=f"The uploaded image appears to be an electronic device ({clean_name}).",
+                rejection_reason=f"The uploaded image was verified as an electronic device ({clean_name}).",
+                foliage_ratio=round(foliage_ratio * 100.0, 1),
+                background_ratio=background_ratio,
+                metrics=metrics_dict
+            )
+
+        # 3. Animal / Pet Veto (e.g. dogs, cats, birds, insects outside leaf)
+        if (p_anim > 0.35 or (p_anim > 0.20 and green_ratio < 0.25 and top_idx in self._group_indices.get("animal", []))):
+            return PlantValidationResult(
+                is_plant=False,
+                status="rejected",
+                detected_subject=f"Animal / Pet ({clean_name})",
+                subject_category="animal",
+                plant_confidence=round(max(0.0, 1.0 - p_anim) * 10.0, 1),
+                reason_code="NON_PLANT_OBJECT",
+                warnings=["NON_PLANT_ANIMAL"],
+                has_multiple_leaves=False,
+                leaf_count_estimate=0,
+                leaf_focus_status="non_plant",
+                rejection_reason=f"The uploaded image appears to be an animal or pet ({clean_name}, {top_prob*100:.1f}% confidence).",
                 foliage_ratio=round(foliage_ratio * 100.0, 1),
                 background_ratio=background_ratio,
                 metrics=metrics_dict
@@ -487,7 +449,7 @@ class PlantPresenceValidator:
             )
 
         # 5. Furniture / Architecture Veto
-        if p_furn > 0.20 or top_idx in self._group_indices.get("furniture_building", []):
+        if (p_furn > 0.25 and green_ratio < 0.25) or (top_idx in self._group_indices.get("furniture_building", []) and green_ratio < 0.20):
             return PlantValidationResult(
                 is_plant=False,
                 status="rejected",
@@ -506,7 +468,7 @@ class PlantPresenceValidator:
             )
 
         # 6. Prepared Food Veto
-        if p_food > 0.20 or top_idx in self._group_indices.get("prepared_food", []):
+        if (p_food > 0.25 and green_ratio < 0.25) or (top_idx in self._group_indices.get("prepared_food", []) and green_ratio < 0.20):
             return PlantValidationResult(
                 is_plant=False,
                 status="rejected",
@@ -525,7 +487,7 @@ class PlantPresenceValidator:
             )
 
         # 7. Hardware / Tools Veto
-        if p_tool > 0.20 or top_idx in self._group_indices.get("tools_household", []):
+        if (p_tool > 0.25 and green_ratio < 0.25) or (top_idx in self._group_indices.get("tools_household", []) and green_ratio < 0.20):
             return PlantValidationResult(
                 is_plant=False,
                 status="rejected",
@@ -562,7 +524,41 @@ class PlantPresenceValidator:
                 metrics=metrics_dict
             )
 
-        # 9. Generic Non-Plant Rejection
+        # Step 2: Genuine Botanical Plant Foliage Confirmation
+        has_organic_plant_tissue = (
+            (green_ratio >= 0.035 and foliage_ratio >= 0.12) or
+            (green_ratio >= 0.025 and exg_ratio >= 0.05 and foliage_ratio >= 0.12) or
+            (green_ratio >= 0.05) or
+            (p_bot >= 0.15)
+        )
+
+        if has_organic_plant_tissue:
+            plant_score = min(99.5, max(85.0, 75.0 + (foliage_ratio * 25.0)))
+            
+            val_status = "suitable"
+            primary_reason_code = "SUITABLE_PLANT"
+            if len(focus_warnings) > 0:
+                val_status = "warning"
+                primary_reason_code = focus_warnings[0]
+
+            return PlantValidationResult(
+                is_plant=True,
+                status=val_status,
+                detected_subject="Plant Leaf / Crop Specimen",
+                subject_category="plant",
+                plant_confidence=round(plant_score, 1),
+                reason_code=primary_reason_code,
+                warnings=focus_warnings,
+                has_multiple_leaves=has_multi,
+                leaf_count_estimate=leaf_est,
+                leaf_focus_status=focus_status,
+                rejection_reason=None,
+                foliage_ratio=round(foliage_ratio * 100.0, 1),
+                background_ratio=background_ratio,
+                metrics=metrics_dict
+            )
+
+        # Step 3: Generic Non-Plant Rejection
         return PlantValidationResult(
             is_plant=False,
             status="rejected",
