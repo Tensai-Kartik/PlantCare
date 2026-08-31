@@ -369,21 +369,18 @@ class PlantPresenceValidator:
         # Decision Logic: Botanical Hierarchy
         # ---------------------------------------------------------
         # A. Does the image have authentic botanical vegetative tissue?
-        # Requires genuine chlorophyll green leaf tissue and organic contour curvature
-        has_chlorophyll = (green_ratio >= 0.035) or (green_ratio >= 0.02 and exg_ratio >= 0.05)
-        has_organic_plant_tissue = has_chlorophyll and (foliage_ratio >= 0.10) and (straight_line_density < 0.045)
-
-        # Check for artificial green objects (e.g. green sports car or green metallic chair)
-        is_rigid_manmade_green = (
-            straight_line_density > 0.035 and
-            (p_veh > 0.40 or p_furn > 0.40 or p_elec > 0.40)
+        # A genuine plant leaf has active chlorophyll green and significant foliage area.
+        has_organic_plant_tissue = (
+            (green_ratio >= 0.035 and foliage_ratio >= 0.12) or
+            (green_ratio >= 0.025 and exg_ratio >= 0.05 and foliage_ratio >= 0.12) or
+            (green_ratio >= 0.05)
         )
 
-        if has_organic_plant_tissue and not is_rigid_manmade_green:
+        if has_organic_plant_tissue:
             # ---------------------------------------------------------
             # PASS: Valid Plant / Leaf Specimen Confirmed
             # ---------------------------------------------------------
-            plant_score = min(99.5, max(80.0, 70.0 + (foliage_ratio * 30.0) + (p_bot * 20.0)))
+            plant_score = min(99.5, max(85.0, 75.0 + (foliage_ratio * 25.0)))
             
             val_status = "suitable"
             primary_reason_code = "SUITABLE_PLANT"
@@ -409,7 +406,7 @@ class PlantPresenceValidator:
             )
 
         # ---------------------------------------------------------
-        # B. Non-Plant Object Vetoes (Triggered when no plant foliage exists)
+        # B. Non-Plant Object Vetoes (Triggered strictly when no plant foliage exists)
         # ---------------------------------------------------------
         clean_name = top_name.replace("_", " ").title()
 
