@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: plantcare-backend
+    env: python
+    region: oregon
+    plan: free
+    branch: main
+    rootDir: backend
+    buildCommand: "pip install --upgrade pip && pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: ENABLE_TEMPERATURE_CALIBRATION
+        value: "true"
+      - key: GEMINI_VISION_MODE
+        value: "ambiguity_only"

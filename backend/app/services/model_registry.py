@@ -129,6 +129,18 @@ class MobileNetV3SmallModel(BasePlantModel):
         return self.model.features[-1]
 
 
+class ResNet18Model(BasePlantModel):
+    def _construct_architecture(self) -> nn.Module:
+        model = models.resnet18(weights=None)
+        in_features = model.fc.in_features
+        model.fc = nn.Linear(in_features, self.num_classes)
+        return model
+
+    def get_target_layer_for_gradcam(self) -> nn.Module:
+        self.load()
+        return self.model.layer4[-1]
+
+
 class ModelRegistry:
     def __init__(self, weights_dir: Optional[Path] = None):
         self.weights_dir = weights_dir or settings.MODEL_WEIGHTS_DIR
@@ -211,6 +223,30 @@ class ModelRegistry:
             metadata=mob_meta
         )
 
+        # Register ResNet-18
+        res_meta = models_meta.get("resnet18", {
+            "name": "ResNet-18",
+            "architecture": "resnet18",
+            "version": "1.2.0",
+            "dataset": "PlantVillage + FieldAug",
+            "dataset_version": "2.0",
+            "classes": default_classes,
+            "img_size": 224,
+            "class_count": 21,
+            "training_date": "2026-08-26",
+            "temperature": 1.10,
+            "ece": 0.035,
+            "accuracy": 92.86,
+            "weighted_f1": 0.9120,
+            "latency_ms": 11.45
+        })
+        self.models["resnet18"] = ResNet18Model(
+            model_id="resnet18",
+            name="ResNet-18",
+            weight_path=self.weights_dir / "resnet18.pth",
+            metadata=res_meta
+        )
+
     def get_model(self, model_id: Optional[str] = None) -> BasePlantModel:
         target_id = model_id or self.default_model_id
         if target_id not in self.models:
@@ -234,7 +270,7 @@ class ModelRegistry:
 
     def run_model_comparison(self, pil_image: Image.Image) -> ModelDisagreementResult:
         """
-        Runs multiple lightweight models (EfficientNet-B0 and MobileNetV3-Small)
+        Runs multiple lightweight models (EfficientNet-B0, MobileNetV3-Small, ResNet-18)
         to check for diagnosis consensus / disagreement.
         """
         entries: List[ModelComparisonEntry] = []
@@ -276,19 +312,19 @@ class ModelRegistry:
                 comparison=entries
             )
 
-        # Compare top predicted classes
+        # Compare top predicted classes across models
         first_pred = preds_list[0][0]
-        second_pred = preds_list[1][0]
-        same_pred = (first_pred == second_pred)
+        agreed_count = sum(1 for p in preds_list if p[0] == first_pred)
+        majority_agreed = (agreed_count >= (len(preds_list) + 1) // 2)
 
-        if same_pred:
-            avg_conf = (preds_list[0][1] + preds_list[1][1]) / 2.0 * 100.0
+        if majority_agreed:
+            avg_conf = sum(p[1] for p in preds_list if p[0] == first_pred) / agreed_count * 100.0
             return ModelDisagreementResult(
                 enabled=True,
                 agreement_status="AGREED",
                 models_agree=True,
                 consensus_prediction=entries[0].predicted_name,
-                message=f"Models agree: {entries[0].predicted_name} (Consensus confidence ~{avg_conf:.1f}%).",
+                message=f"Model Consensus Confirmed: {entries[0].predicted_name} (Confidence ~{avg_conf:.1f}%).",
                 comparison=entries
             )
         else:
@@ -297,7 +333,7 @@ class ModelRegistry:
                 agreement_status="DISAGREED",
                 models_agree=False,
                 consensus_prediction=None,
-                message="Models disagree — consider uploading a clearer or closer image of the leaf.",
+                message="Model Disagreement: Multi-model architectures produced divergent predictions.",
                 comparison=entries
             )
 
