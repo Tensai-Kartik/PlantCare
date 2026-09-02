@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { UploadCloud, Image as ImageIcon, Camera, AlertCircle, RefreshCw, ArrowRight, Car } from 'lucide-react';
+import { CameraModal } from '../camera/CameraModal';
 
 interface LeafDropzoneProps {
   onImageSelected: (file: File) => void;
@@ -11,6 +12,7 @@ export const LeafDropzone: React.FC<LeafDropzoneProps> = ({ onImageSelected, isL
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -200,7 +202,7 @@ export const LeafDropzone: React.FC<LeafDropzoneProps> = ({ onImageSelected, isL
               </button>
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click(); }}
+                onClick={(e) => { e.stopPropagation(); setIsCameraOpen(true); }}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface border border-strong hover:border-emerald-500 text-xs font-semibold text-primary-color shadow-xs transition-all cursor-pointer"
               >
                 <Camera className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -219,6 +221,16 @@ export const LeafDropzone: React.FC<LeafDropzoneProps> = ({ onImageSelected, isL
           </div>
         )}
       </div>
+
+      {/* Live Device Camera Modal */}
+      <CameraModal
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        onCapture={(file) => {
+          validateAndHandleFile(file);
+          setIsCameraOpen(false);
+        }}
+      />
 
       {/* Error Message */}
       {errorMsg && (

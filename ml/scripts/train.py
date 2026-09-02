@@ -60,6 +60,11 @@ def build_model(model_name: str, num_classes: int, pretrained: bool = True):
         model = models.mobilenet_v3_small(weights=weights)
         in_features = model.classifier[3].in_features
         model.classifier[3] = nn.Linear(in_features, num_classes)
+    elif model_name == "resnet18":
+        weights = models.ResNet18_Weights.DEFAULT if pretrained else None
+        model = models.resnet18(weights=weights)
+        in_features = model.fc.in_features
+        model.fc = nn.Linear(in_features, num_classes)
     else:
         raise ValueError(f"Unsupported model architecture: {model_name}")
 
@@ -112,7 +117,7 @@ def evaluate(model, loader, criterion, device):
 
 def main():
     parser = argparse.ArgumentParser(description="Train PlantCare Computer Vision Models")
-    parser.add_argument("--model", type=str, default="efficientnet_b0", choices=["efficientnet_b0", "mobilenet_v3_small"])
+    parser.add_argument("--model", type=str, default="efficientnet_b0", choices=["efficientnet_b0", "mobilenet_v3_small", "resnet18"])
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--lr", type=float, default=1e-3)

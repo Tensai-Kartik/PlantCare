@@ -81,24 +81,40 @@ export const TreatmentGuide: React.FC<TreatmentGuideProps> = ({ onOpenDiseaseInK
         </div>
 
         {currentDisease && (
-          <div className="p-5 rounded-2xl bg-surface border border-subtle space-y-4 animate-in fade-in duration-200">
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-subtle">
-              <div>
-                <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 mr-2">
-                  {currentDisease.plant}
-                </span>
-                <span className="text-base font-black text-primary-color">{currentDisease.name}</span>
-                {currentDisease.scientific_name && (
-                  <span className="text-xs text-muted-color italic ml-2">({currentDisease.scientific_name})</span>
-                )}
+          <div className="p-5 sm:p-6 rounded-2xl bg-surface border border-subtle space-y-5 animate-in fade-in duration-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-subtle">
+              <div className="flex items-center gap-3.5">
+                <div className="w-14 h-14 rounded-2xl overflow-hidden bg-surface-subtle border border-subtle shrink-0 shadow-xs">
+                  <img
+                    src={currentDisease.image_url || `/examples/${currentDisease.id}.jpg`}
+                    alt={currentDisease.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
+                      {currentDisease.plant}
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-surface-elevated border border-subtle text-secondary-color">
+                      Severity: {currentDisease.severity}
+                    </span>
+                  </div>
+                  <h4 className="text-base sm:text-lg font-black text-primary-color">{currentDisease.name}</h4>
+                  {currentDisease.scientific_name && (
+                    <span className="text-xs text-muted-color italic font-mono block">
+                      Pathogen: {currentDisease.scientific_name}
+                    </span>
+                  )}
+                </div>
               </div>
               {onOpenDiseaseInKB && (
                 <button
                   onClick={() => onOpenDiseaseInKB(currentDisease.id)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                  className="flex items-center gap-1.5 self-start sm:self-center px-3.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-zinc-800 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-zinc-700 transition-all cursor-pointer shadow-xs"
                 >
                   <BookOpen className="w-3.5 h-3.5" />
-                  <span>Open Full Pathology Profile</span>
+                  <span>Full Pathology Guide</span>
                 </button>
               )}
             </div>

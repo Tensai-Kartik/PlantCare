@@ -1,17 +1,24 @@
 services:
   - type: web
-    name: plantcare-backend
-    env: python
-    region: oregon
-    plan: free
-    branch: main
+    name: plantcare-api
+    runtime: python
     rootDir: backend
-    buildCommand: "pip install --upgrade pip && pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt"
-    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    buildCommand: pip install --no-cache-dir -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.10.12
-      - key: ENABLE_TEMPERATURE_CALIBRATION
-        value: "true"
+      - key: ENV
+        value: production
+      - key: DEFAULT_MODEL
+        value: efficientnet_b0
+      - key: GEMINI_MODEL
+        value: gemini-flash-latest
+      - key: GEMINI_FALLBACK_MODELS
+        value: gemini-flash-latest,gemini-flash-lite-latest,gemini-3.7-flash,gemini-3.6-flash
       - key: GEMINI_VISION_MODE
-        value: "ambiguity_only"
+        value: always
+      - key: FRONTEND_URL
+        value: https://plantcare.vercel.app
+      - key: GEMINI_API_KEY
+        sync: false

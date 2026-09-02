@@ -89,7 +89,7 @@ export async function analyzePlant(
   file: File,
   modelId?: string,
   skipQualityCheck: boolean = false,
-  enableModelComparison: boolean = false
+  enableModelComparison: boolean = true
 ): Promise<AnalysisResponse> {
   const formData = new FormData();
   formData.append('file', file);
@@ -130,7 +130,7 @@ export async function compareModels(file: File): Promise<ModelDisagreementResult
 export async function analyzeExample(
   exampleId: string,
   modelId?: string,
-  enableModelComparison: boolean = false
+  enableModelComparison: boolean = true
 ): Promise<AnalysisResponse> {
   const url = new URL(`${API_BASE}/analyze-example/${exampleId}`);
   if (modelId) url.searchParams.append('model_id', modelId);

@@ -21,7 +21,7 @@ export const AnalyzePlant: React.FC<AnalyzePlantProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [qualityResult, setQualityResult] = useState<QualityCheckResult | null>(null);
-  const [enableModelComparison, setEnableModelComparison] = useState(false);
+  const [enableModelComparison, setEnableModelComparison] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -109,10 +109,10 @@ export const AnalyzePlant: React.FC<AnalyzePlantProps> = ({
               </div>
               <div>
                 <span className="text-xs font-bold text-primary-color block">
-                  Multi-Model Verification Mode
+                  Multi-Model & AI Vision Consensus
                 </span>
                 <span className="text-[11px] text-muted-color">
-                  Cross-checks predictions between EfficientNet-B0 and MobileNetV3-Small
+                  Cross-checks ensemble predictions across EfficientNet-B0, MobileNetV3-Small, ResNet-18, and Gemini Vision
                 </span>
               </div>
             </div>

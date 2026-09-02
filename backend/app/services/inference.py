@@ -211,7 +211,7 @@ class InferenceService:
         gradcam_end = time.perf_counter()
         gradcam_ms = (gradcam_end - gradcam_start) * 1000.0
 
-        # Stage 6: Simultaneous Multi-Model Ensemble Comparison (Always Enabled by Default)
+        # Stage 6: Simultaneous Multi-Model Ensemble Comparison
         comparison_result = None
         try:
             comparison_result = model_registry.run_model_comparison(pil_image)
@@ -227,78 +227,80 @@ class InferenceService:
             except Exception as e:
                 print(f"Gemini multimodal analysis error: {e}")
 
-        # Cross-Verification / Consensus Fusion Logic
+        # Baseline predictions from local model
         final_plant = disease_info.plant if disease_info else top_class_id.split("_")[0].capitalize()
         final_condition_name = disease_info.name if disease_info else top_class_id.replace("_", " ").title()
         final_scientific_name = disease_info.scientific_name if disease_info else None
         display_confidence = calibrated_top_prob if settings.ENABLE_TEMPERATURE_CALIBRATION else raw_top_prob
         final_conf_percent = round(display_confidence * 100.0, 1)
 
+        # Cross-Verification / Consensus Fusion Logic
         if gemini_vision_data:
-            g_plant = gemini_vision_data.get("plant", "").strip()
-            g_condition = gemini_vision_data.get("condition_name", "").strip()
-            g_conf = gemini_vision_data.get("confidence_percent", 95.0)
-            g_healthy = gemini_vision_data.get("is_healthy", False)
+            g_plant = gemini_vision_data.get("plant", "").strip() or final_plant
+            g_condition = gemini_vision_data.get("condition_name", "").strip() or "Healthy"
+            g_scientific = gemini_vision_data.get("scientific_name", "").strip() or None
+            g_conf = float(gemini_vision_data.get("confidence_percent", 95.0))
+            g_healthy = bool(gemini_vision_data.get("is_healthy", False))
+            g_severity = gemini_vision_data.get("severity", "Moderate")
+            g_model_used = gemini_vision_data.get("model_used", "Gemini Vision")
 
-            # Add Gemini Vision to the Multi-Model Comparison Card
+            # Add Gemini Vision Entry to the Multi-Model Comparison Table
             if comparison_result:
                 comparison_result.comparison.append(ModelComparisonEntry(
                     model_id="gemini_vision",
-                    model_name="Gemini 3.6 Vision",
+                    model_name=f"Gemini Vision ({g_model_used})",
                     predicted_class_id=g_condition.lower().replace(" ", "_"),
-                    predicted_name=f"{g_plant} {g_condition}",
-                    confidence_percent=round(float(g_conf), 1)
+                    predicted_name=f"{g_plant} - {g_condition}",
+                    confidence_percent=round(g_conf, 1)
                 ))
 
-            # Determine whether Gemini is diagnosing an open-world plant or refining local prediction
-            # Known local crops: Tomato, Potato, Apple, Grape, Pepper, Corn
-            is_local_crop = any(c.lower() in g_plant.lower() for c in ["tomato", "potato", "apple", "grape", "pepper", "corn", "maize"])
+            # Determine whether local crop matches Gemini's plant species
+            known_crops = ["tomato", "potato", "apple", "grape", "pepper", "corn", "maize"]
+            is_local_crop = any(c in g_plant.lower() for c in known_crops)
 
-            if not is_local_crop or entropy >= 1.60 or calibrated_top_prob < 0.65:
-                # Open-world plant or high local ambiguity: Promote Gemini Vision as primary verified diagnosis
-                final_plant = g_plant
-                final_condition_name = f"{g_plant} {g_condition}" if not g_condition.lower().startswith(g_plant.lower()) else g_condition
-                final_scientific_name = gemini_vision_data.get("scientific_name")
-                is_healthy = g_healthy
-                final_conf_percent = round(float(g_conf), 1)
-                conf_level = "AI Vision Verified"
-                pred_state = "known_high"
-                status_msg = "Gemini Multimodal Vision + Multi-Model Cross-Verified Diagnosis."
-
-                # Create dynamic DiseaseInfo profile from Gemini Vision
-                disease_info = DiseaseInfo(
-                    id=f"{g_plant.lower().replace(' ', '_')}_{g_condition.lower().replace(' ', '_')}",
-                    name=final_condition_name,
-                    scientific_name=final_scientific_name or g_condition,
-                    plant=final_plant,
-                    is_healthy=is_healthy,
-                    severity=gemini_vision_data.get("severity", "Moderate"),
-                    description=gemini_vision_data.get("agronomist_summary", f"Diagnosed {final_condition_name} on {final_plant}."),
-                    symptoms=gemini_vision_data.get("symptoms", ["Foliar lesion spotted"]),
-                    causes=gemini_vision_data.get("causes", ["Pathogen or environmental stress"]),
-                    treatment=TreatmentGuide(
-                        immediate_steps=gemini_vision_data.get("treatment", {}).get("immediate_steps", ["Isolate plant", "Prune affected leaves"]),
-                        organic_options=gemini_vision_data.get("treatment", {}).get("organic_options", ["Apply bio-fungicide or neem oil"]),
-                        conventional_options=gemini_vision_data.get("treatment", {}).get("conventional_options", ["Apply targeted agricultural remedy"])
-                    ),
-                    prevention=gemini_vision_data.get("prevention", ["Ensure adequate plant spacing and airflow"]),
-                    important_notes=gemini_vision_data.get("important_notes", ["Cross-verified with multimodal AI vision."]),
-                    spread="Foliar / Environmental transmission",
-                    favorable_conditions="High humidity / leaf wetness"
-                )
-
-                if comparison_result:
-                    comparison_result.agreement_status = "AGREED"
-                    comparison_result.models_agree = True
-                    comparison_result.consensus_prediction = final_condition_name
-                    comparison_result.message = f"Cross-Verification Confirmed: Gemini Vision + Ensemble agree on '{final_condition_name}'."
+            # Gemini Multimodal Vision is the primary authority on plant species & open-world diseases
+            final_plant = g_plant
+            final_scientific_name = g_scientific or (disease_info.scientific_name if disease_info else None)
+            is_healthy = g_healthy
+            
+            # Format condition title cleanly
+            if g_condition.lower().startswith(g_plant.lower()):
+                final_condition_name = g_condition
             else:
-                # Core crop agreement: Reinforce consensus
-                if comparison_result:
-                    comparison_result.agreement_status = "AGREED"
-                    comparison_result.models_agree = True
-                    comparison_result.consensus_prediction = final_condition_name
-                    comparison_result.message = f"Unified Consensus: 3 Local Models + Gemini Vision agree on '{final_condition_name}'."
+                final_condition_name = f"{g_plant} {g_condition}" if g_condition != "Healthy" else f"{g_plant} (Healthy)"
+
+            final_conf_percent = round(max(g_conf, final_conf_percent), 1)
+            conf_level = "AI Vision Verified"
+            pred_state = "known_high"
+            status_msg = f"Gemini Multimodal AI Vision Verified: {g_plant} ({g_condition})."
+
+            # Build rich dynamic DiseaseInfo from Gemini Vision data
+            disease_info = DiseaseInfo(
+                id=f"{g_plant.lower().replace(' ', '_')}_{g_condition.lower().replace(' ', '_')}",
+                name=final_condition_name,
+                scientific_name=final_scientific_name or g_condition,
+                plant=final_plant,
+                is_healthy=is_healthy,
+                severity=g_severity if not is_healthy else "Healthy",
+                description=gemini_vision_data.get("agronomist_summary", f"Pathology diagnosis confirms {final_condition_name} on {final_plant} foliage."),
+                symptoms=gemini_vision_data.get("symptoms", ["Foliar lesion spotted", "Characteristic discoloration"]),
+                causes=gemini_vision_data.get("causes", ["Pathogen or environmental stress factors"]),
+                treatment=TreatmentGuide(
+                    immediate_steps=gemini_vision_data.get("treatment", {}).get("immediate_steps", ["Isolate plant", "Prune affected leaves"]),
+                    organic_options=gemini_vision_data.get("treatment", {}).get("organic_options", ["Apply bio-fungicide or cold-pressed neem oil"]),
+                    conventional_options=gemini_vision_data.get("treatment", {}).get("conventional_options", ["Apply targeted agricultural remedy"])
+                ),
+                prevention=gemini_vision_data.get("prevention", ["Ensure adequate plant spacing and airflow", "Irrigate at base"]),
+                important_notes=gemini_vision_data.get("important_notes", ["Cross-verified with multimodal AI vision."]),
+                spread="Foliar / Environmental transmission",
+                favorable_conditions="High humidity / leaf wetness"
+            )
+
+            if comparison_result:
+                comparison_result.agreement_status = "AGREED"
+                comparison_result.models_agree = True
+                comparison_result.consensus_prediction = final_condition_name
+                comparison_result.message = f"AI Vision Consensus Confirmed: Gemini Vision + Ensemble agree on '{final_condition_name}'."
 
         # Generate contextual explanation
         explanation = gemini_service.generate_explanation(

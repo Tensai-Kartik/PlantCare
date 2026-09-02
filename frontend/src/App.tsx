@@ -122,7 +122,7 @@ export function App() {
     setIsGlobalLoading(true);
 
     try {
-      const res = await analyzePlant(file, selectedModel, skipQuality);
+      const res = await analyzePlant(file, selectedModel, skipQuality, true);
       setDirectResult(res);
       setDirectAnalysisStep('result');
     } catch (err) {
@@ -142,7 +142,7 @@ export function App() {
     setDirectAnalysisStep('analyzing');
 
     try {
-      const res = await analyzeExample(exampleId, selectedModel);
+      const res = await analyzeExample(exampleId, selectedModel, true);
       setDirectResult(res);
       setDirectAnalysisStep('result');
     } catch (err) {

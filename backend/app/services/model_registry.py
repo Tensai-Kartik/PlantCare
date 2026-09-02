@@ -312,19 +312,21 @@ class ModelRegistry:
                 comparison=entries
             )
 
-        # Compare top predicted classes across models
-        first_pred = preds_list[0][0]
-        agreed_count = sum(1 for p in preds_list if p[0] == first_pred)
-        majority_agreed = (agreed_count >= (len(preds_list) + 1) // 2)
+        # Compare top predicted classes across models using true majority voting
+        from collections import Counter
+        class_counts = Counter(p[0] for p in preds_list)
+        most_common_class, top_count = class_counts.most_common(1)[0]
+        majority_agreed = (top_count >= (len(preds_list) + 1) // 2)
 
         if majority_agreed:
-            avg_conf = sum(p[1] for p in preds_list if p[0] == first_pred) / agreed_count * 100.0
+            consensus_name = next((entry.predicted_name for entry in entries if entry.predicted_class_id == most_common_class), entries[0].predicted_name)
+            avg_conf = sum(p[1] for p in preds_list if p[0] == most_common_class) / top_count * 100.0
             return ModelDisagreementResult(
                 enabled=True,
                 agreement_status="AGREED",
                 models_agree=True,
-                consensus_prediction=entries[0].predicted_name,
-                message=f"Model Consensus Confirmed: {entries[0].predicted_name} (Confidence ~{avg_conf:.1f}%).",
+                consensus_prediction=consensus_name,
+                message=f"Model Consensus Confirmed: {consensus_name} (Confidence ~{avg_conf:.1f}%).",
                 comparison=entries
             )
         else:

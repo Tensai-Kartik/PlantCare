@@ -294,11 +294,22 @@ export const ResultView: React.FC<ResultViewProps> = ({
             </div>
           </div>
           <div className="hidden sm:flex items-center gap-2 text-xs font-mono">
-            {comparison.comparison.map((c, i) => (
-              <span key={i} className="px-2 py-1 rounded-lg bg-surface border border-subtle text-primary-color">
-                {c.model_name}: {c.confidence_percent}%
-              </span>
-            ))}
+            {comparison.comparison.map((c, i) => {
+              const isGemini = c.model_id === 'gemini_vision' || c.model_name.toLowerCase().includes('gemini');
+              return (
+                <span 
+                  key={i} 
+                  className={`px-2.5 py-1 rounded-xl border font-semibold flex items-center gap-1.5 ${
+                    isGemini 
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs dark:bg-emerald-500' 
+                      : 'bg-surface border-subtle text-primary-color'
+                  }`}
+                >
+                  {isGemini && <Sparkles className="w-3 h-3 animate-pulse" />}
+                  <span>{c.model_name}: {c.confidence_percent}%</span>
+                </span>
+              );
+            })}
           </div>
         </div>
       )}
@@ -573,35 +584,54 @@ export const ResultView: React.FC<ResultViewProps> = ({
 
       {/* Gemini AI Care Assistant Synthesis Card */}
       {explanation && (
-        <div className="bg-gradient-to-r from-emerald-50/80 via-emerald-100/40 to-teal-50/80 dark:from-zinc-900 dark:via-zinc-900/90 dark:to-zinc-900 border border-emerald-200/80 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 custom-shadow space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-emerald-600 text-white shadow-sm">
-                <Sparkles className="w-4 h-4" />
+        <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/10 dark:from-zinc-900 dark:via-zinc-900/90 dark:to-zinc-900 border border-emerald-500/30 dark:border-emerald-500/20 rounded-3xl p-5 sm:p-6 custom-shadow space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-md shadow-emerald-600/30">
+                <Sparkles className="w-4 h-4 animate-pulse" />
               </div>
-              <h4 className="font-bold text-sm sm:text-base text-emerald-950 dark:text-zinc-100">
-                AI Agronomist Explanation
-              </h4>
+              <div>
+                <h4 className="font-bold text-sm sm:text-base text-emerald-950 dark:text-zinc-100 flex items-center gap-2">
+                  <span>AI Agronomist Live Diagnosis</span>
+                  {explanation.powered_by_gemini && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                      Live Multimodal AI
+                    </span>
+                  )}
+                </h4>
+                <span className="text-[11px] text-muted-color block">
+                  Plant species identification, foliar lesion etiology & actionable management
+                </span>
+              </div>
             </div>
-            <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-md bg-emerald-200/60 dark:bg-zinc-800 text-emerald-900 dark:text-emerald-300">
-              {explanation.powered_by_gemini ? 'Powered by Gemini' : 'Curated Pathology Synthesis'}
-            </span>
+            <div className="self-start sm:self-auto">
+              <span className={`text-[10px] font-bold tracking-wider uppercase px-3 py-1 rounded-xl flex items-center gap-1.5 ${
+                explanation.powered_by_gemini
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm'
+                  : 'bg-emerald-200/60 dark:bg-zinc-800 text-emerald-900 dark:text-emerald-300'
+              }`}>
+                <Sparkles className="w-3 h-3" />
+                <span>{explanation.powered_by_gemini ? 'Powered by Google Gemini Vision' : 'Curated Pathology Synthesis'}</span>
+              </span>
+            </div>
           </div>
 
-          <p className="text-xs sm:text-sm text-emerald-950 dark:text-zinc-300 leading-relaxed">
+          <div className="p-4 rounded-2xl bg-white/80 dark:bg-zinc-850/80 border border-emerald-100/80 dark:border-zinc-800 text-xs sm:text-sm text-emerald-950 dark:text-zinc-200 leading-relaxed font-medium">
             {explanation.summary}
-          </p>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 text-xs">
-            <div className="p-3 rounded-2xl bg-white/70 dark:bg-zinc-800/80 border border-emerald-100 dark:border-zinc-700/60">
-              <span className="font-bold text-emerald-900 dark:text-emerald-300 block mb-1">
-                Pathology Interpretation:
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1 text-xs">
+            <div className="p-4 rounded-2xl bg-white/70 dark:bg-zinc-800/80 border border-emerald-100 dark:border-zinc-700/60 space-y-1.5">
+              <span className="font-bold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5 text-xs">
+                <Info className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Pathology Etiology & Symptoms:</span>
               </span>
               <p className="text-secondary-color leading-relaxed">{explanation.interpretation}</p>
             </div>
-            <div className="p-3 rounded-2xl bg-white/70 dark:bg-zinc-800/80 border border-emerald-100 dark:border-zinc-700/60">
-              <span className="font-bold text-emerald-900 dark:text-emerald-300 block mb-1">
-                Immediate Action Steps:
+            <div className="p-4 rounded-2xl bg-white/70 dark:bg-zinc-800/80 border border-emerald-100 dark:border-zinc-700/60 space-y-1.5">
+              <span className="font-bold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5 text-xs">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Immediate Field Action Protocol:</span>
               </span>
               <p className="text-secondary-color leading-relaxed whitespace-pre-line">{explanation.care_recommendation}</p>
             </div>

@@ -12,9 +12,6 @@
       "img_size": 224,
       "num_classes": 21,
       "class_count": 21,
-      "training_date": "2026-08-26",
-      "temperature": 1.15,
-      "ece": 0.038,
       "classes": [
         "apple_black_rot",
         "apple_cedar_apple_rust",
@@ -41,8 +38,18 @@
       "accuracy": 90.48,
       "weighted_f1": 0.8845,
       "latency_ms": 13.03,
-      "norm_mean": [0.485, 0.456, 0.406],
-      "norm_std": [0.229, 0.224, 0.225]
+      "temperature": 1.15,
+      "ece": 0.038,
+      "norm_mean": [
+        0.485,
+        0.456,
+        0.406
+      ],
+      "norm_std": [
+        0.229,
+        0.224,
+        0.225
+      ]
     },
     "mobilenet_v3_small": {
       "id": "mobilenet_v3_small",
@@ -55,9 +62,6 @@
       "img_size": 224,
       "num_classes": 21,
       "class_count": 21,
-      "training_date": "2026-08-26",
-      "temperature": 1.20,
-      "ece": 0.045,
       "classes": [
         "apple_black_rot",
         "apple_cedar_apple_rust",
@@ -84,8 +88,18 @@
       "accuracy": 77.78,
       "weighted_f1": 0.7135,
       "latency_ms": 1.91,
-      "norm_mean": [0.485, 0.456, 0.406],
-      "norm_std": [0.229, 0.224, 0.225]
+      "temperature": 1.2,
+      "ece": 0.045,
+      "norm_mean": [
+        0.485,
+        0.456,
+        0.406
+      ],
+      "norm_std": [
+        0.229,
+        0.224,
+        0.225
+      ]
     },
     "resnet18": {
       "id": "resnet18",
@@ -98,9 +112,6 @@
       "img_size": 224,
       "num_classes": 21,
       "class_count": 21,
-      "training_date": "2026-08-26",
-      "temperature": 1.10,
-      "ece": 0.035,
       "classes": [
         "apple_black_rot",
         "apple_cedar_apple_rust",
@@ -124,11 +135,21 @@
         "tomato_septoria_leaf_spot",
         "tomato_yellow_leaf_curl_virus"
       ],
-      "accuracy": 92.86,
-      "weighted_f1": 0.9120,
-      "latency_ms": 11.45,
-      "norm_mean": [0.485, 0.456, 0.406],
-      "norm_std": [0.229, 0.224, 0.225]
+      "accuracy": 86.51,
+      "weighted_f1": 0.91,
+      "latency_ms": 11.5,
+      "temperature": 1.1,
+      "ece": 0.035,
+      "norm_mean": [
+        0.485,
+        0.456,
+        0.406
+      ],
+      "norm_std": [
+        0.229,
+        0.224,
+        0.225
+      ]
     }
   }
 }
