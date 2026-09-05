@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sun, Moon, Plus, RotateCcw, Download, Printer } from 'lucide-react';
+import { Sun, Moon, Plus, RotateCcw, Download, Printer, AlertCircle, X } from 'lucide-react';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { Dashboard } from './pages/Dashboard';
@@ -64,6 +64,7 @@ export function App() {
   const [directPreviewUrl, setDirectPreviewUrl] = useState<string | null>(null);
   const [directQuality, setDirectQuality] = useState<QualityCheckResult | null>(null);
   const [directResult, setDirectResult] = useState<AnalysisResponse | null>(null);
+  const [directError, setDirectError] = useState<string | null>(null);
   const [isGlobalLoading, setIsGlobalLoading] = useState<boolean>(false);
 
   useEffect(() => {
@@ -100,15 +101,16 @@ export function App() {
     const url = URL.createObjectURL(file);
     setDirectPreviewUrl(url);
     setIsGlobalLoading(true);
+    setDirectError(null);
 
     try {
       const qRes = await checkImageQuality(file);
       setDirectQuality(qRes);
       setDirectAnalysisStep('quality');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Quality check failed:', err);
-      // Fallback straight to analysis
-      executeDirectAnalysis(file, true);
+      setDirectError(err.message || 'Image quality check failed. Please ensure the backend is online.');
+      handleResetDirect();
     } finally {
       setIsGlobalLoading(false);
     }
@@ -120,14 +122,15 @@ export function App() {
 
     setDirectAnalysisStep('analyzing');
     setIsGlobalLoading(true);
+    setDirectError(null);
 
     try {
       const res = await analyzePlant(file, selectedModel, skipQuality, true);
       setDirectResult(res);
       setDirectAnalysisStep('result');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Analysis error:', err);
-      alert('Analysis encountered an issue. Please try another image.');
+      setDirectError(err.message || 'Analysis encountered an issue. Please try another image.');
       handleResetDirect();
     } finally {
       setIsGlobalLoading(false);
@@ -136,6 +139,7 @@ export function App() {
 
   const handleSelectExample = async (exampleId: string) => {
     setIsGlobalLoading(true);
+    setDirectError(null);
     const exObj = examples.find(e => e.id === exampleId);
     const previewUrl = exObj?.image_url || `/examples/${exampleId}.jpg`;
     setDirectPreviewUrl(previewUrl);
@@ -145,9 +149,9 @@ export function App() {
       const res = await analyzeExample(exampleId, selectedModel, true);
       setDirectResult(res);
       setDirectAnalysisStep('result');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Example analysis error:', err);
-      alert('Failed to analyze sample. Please ensure backend is running.');
+      setDirectError(err.message || 'Failed to analyze sample leaf. Please ensure backend is running.');
       handleResetDirect();
     } finally {
       setIsGlobalLoading(false);
@@ -167,6 +171,7 @@ export function App() {
 
   const handleNavigate = (page: PageRoute) => {
     handleResetDirect();
+    setDirectError(null);
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -174,6 +179,7 @@ export function App() {
   const handleOpenDiseaseInKB = (diseaseId: string) => {
     setSelectedDiseaseForKB(diseaseId);
     handleResetDirect();
+    setDirectError(null);
     setCurrentPage('knowledge');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -225,7 +231,7 @@ export function App() {
         {/* Desktop Top Header Bar */}
         <header className="hidden md:flex items-center justify-between px-8 py-3.5 border-b border-subtle bg-surface sticky top-0 z-30 select-none">
           {directAnalysisStep === 'result' && directResult ? (
-            /* Post-Analysis Top Bar: All buttons in one line in exact sequence */
+            /* Post-Analysis Top Bar */
             <>
               <button
                 onClick={handleResetDirect}
@@ -235,9 +241,7 @@ export function App() {
                 <span>← Back to Dashboard</span>
               </button>
 
-              {/* Action Buttons Sequence: Analyze another plant, dark/light switch, export to json, download report */}
               <div className="flex items-center gap-2">
-                {/* 1. Analyze Another Plant */}
                 <button
                   onClick={handleResetDirect}
                   className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs shadow-emerald-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
@@ -247,7 +251,6 @@ export function App() {
                   <span>Analyze Another Plant</span>
                 </button>
 
-                {/* 2. Dark / Light switch */}
                 <button
                   onClick={handleToggleTheme}
                   className="p-2 rounded-xl bg-surface-elevated hover:bg-surface text-secondary-color hover:text-primary-color border border-subtle transition-all cursor-pointer"
@@ -256,7 +259,6 @@ export function App() {
                   {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
                 </button>
 
-                {/* 3. Export to JSON */}
                 <button
                   onClick={() => exportAnalysisAsJSON(directResult)}
                   className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-surface-elevated hover:bg-surface text-xs font-semibold text-secondary-color hover:text-primary-color border border-subtle transition-all cursor-pointer"
@@ -266,7 +268,6 @@ export function App() {
                   <span>Export to JSON</span>
                 </button>
 
-                {/* 4. Download Report */}
                 <button
                   onClick={() => printDiagnosticReport(directResult)}
                   className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-surface-elevated hover:bg-surface text-xs font-semibold text-primary-color border border-subtle transition-all cursor-pointer"
@@ -299,7 +300,6 @@ export function App() {
                   </button>
                 )}
 
-                {/* Dark/Light mode switch in top right corner */}
                 <button
                   onClick={handleToggleTheme}
                   className="p-2 rounded-xl bg-surface-elevated hover:bg-surface text-secondary-color hover:text-primary-color border border-subtle transition-all cursor-pointer"
@@ -314,6 +314,30 @@ export function App() {
 
         {/* Page Container */}
         <main className="flex-1 p-4 sm:p-6 md:p-8 lg:p-10 max-w-7xl w-full mx-auto">
+          {/* In-App Error Notification Banner */}
+          {directError && (
+            <div className="mb-6 p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 text-red-800 dark:text-red-200 flex items-start justify-between gap-3 shadow-xs animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-red-900 dark:text-red-300">
+                    Analysis Notice
+                  </h4>
+                  <p className="text-xs mt-0.5 text-red-700 dark:text-red-200 leading-relaxed">
+                    {directError}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setDirectError(null)}
+                className="p-1 rounded-lg text-red-500 hover:text-red-700 dark:hover:text-red-200 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                title="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {/* If Direct Analysis from Dashboard is active, render the step */}
           {directAnalysisStep === 'quality' && directPreviewUrl && directQuality ? (
             <div className="space-y-6">

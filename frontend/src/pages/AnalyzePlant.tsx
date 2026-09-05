@@ -39,8 +39,8 @@ export const AnalyzePlant: React.FC<AnalyzePlantProps> = ({
       setCurrentStep('quality');
     } catch (err: any) {
       console.error('Quality check error:', err);
-      // Fallback: Proceed directly to analysis if quality check encounters transient network lag
-      handleProceedToAnalysis(file, true);
+      setError(err.message || 'Quality pre-check failed. Please verify your connection or try another image.');
+      setCurrentStep('upload');
     } finally {
       setIsProcessing(false);
     }

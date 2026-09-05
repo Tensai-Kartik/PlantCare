@@ -80,8 +80,33 @@ SAMPLE_EXAMPLES = [
     )
 ]
 
-ALLOWED_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"]
+ALLOWED_CONTENT_TYPES = [
+    "image/jpeg", "image/png", "image/webp", "image/jpg",
+    "image/pjpeg", "image/jfif", "image/x-png", "image/bmp",
+    "image/tiff", "application/octet-stream"
+]
 MAX_FILE_SIZE_BYTES = settings.MAX_FILE_SIZE_BYTES
+
+def validate_image_payload(content: bytes) -> bytes:
+    if len(content) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded image file is empty. Please select a valid photo."
+        )
+    if len(content) > MAX_FILE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File size exceeds {MAX_FILE_SIZE_BYTES // (1024*1024)} MB limit."
+        )
+    try:
+        img = Image.open(BytesIO(content))
+        img.verify()
+        return content
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unable to decode image format. Please upload a valid JPG, PNG, or WEBP photo. ({str(e)})"
+        )
 
 @router.get("/health", summary="Health Check")
 async def health_check():
@@ -111,31 +136,16 @@ async def check_image_suitability(
             detail="Rate limit exceeded. Please wait a moment before sending more requests."
         )
 
-    if file.content_type not in ALLOWED_CONTENT_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported file type '{file.content_type}'. Please upload JPG, PNG, or WEBP."
-        )
-
     content = await file.read()
-    if len(content) > MAX_FILE_SIZE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File size exceeds {MAX_FILE_SIZE_BYTES // (1024*1024)} MB limit."
-        )
-
-    if len(content) == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Uploaded file is empty."
-        )
+    validate_image_payload(content)
 
     try:
         return image_quality_service.evaluate_image(content)
     except Exception as e:
+        print(f"Quality assessment error: {e}")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Failed to process image: {str(e)}"
+            detail=f"Failed to assess image quality: {str(e)}"
         )
 
 @router.post("/analyze", response_model=AnalysisResponse, summary="Perform Full Plant Pathology Analysis")
@@ -153,24 +163,8 @@ async def analyze_plant_leaf(
             detail="Rate limit exceeded. Please wait a moment before analyzing more images."
         )
 
-    if file.content_type not in ALLOWED_CONTENT_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported file type '{file.content_type}'. Please upload JPG, PNG, or WEBP."
-        )
-
     content = await file.read()
-    if len(content) > MAX_FILE_SIZE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File size exceeds {MAX_FILE_SIZE_BYTES // (1024*1024)} MB limit."
-        )
-
-    if len(content) == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Uploaded file is empty."
-        )
+    validate_image_payload(content)
 
     async with inference_semaphore:
         try:
@@ -200,8 +194,7 @@ async def compare_models_endpoint(
         )
 
     content = await file.read()
-    if len(content) > MAX_FILE_SIZE_BYTES:
-        raise HTTPException(status_code=413, detail="File size exceeds limit.")
+    validate_image_payload(content)
 
     try:
         pil_image = Image.open(BytesIO(content)).convert("RGB")
