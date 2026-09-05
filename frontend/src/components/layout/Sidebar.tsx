@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   ScanLine, 
@@ -8,9 +8,12 @@ import {
   Sprout, 
   Cpu, 
   Leaf,
-  CheckCircle2
+  CheckCircle2,
+  Activity,
+  Server
 } from 'lucide-react';
 import { PageRoute, ThemeMode, ModelMetadata } from '../../types';
+import { subscribeServerStatus, ServerWarmupStatus } from '../../services/api';
 
 interface SidebarProps {
   currentPage: PageRoute;
@@ -32,6 +35,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectModel
 }) => {
   const [showModelMenu, setShowModelMenu] = React.useState(false);
+  const [serverStatus, setServerStatus] = useState<ServerWarmupStatus>('checking');
+
+  useEffect(() => {
+    const unsubscribe = subscribeServerStatus(setServerStatus);
+    return () => unsubscribe();
+  }, []);
 
   const navItems: { id: PageRoute; label: string; icon: React.ReactNode; badge?: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
@@ -94,8 +103,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
       </div>
 
-      {/* Footer Area: Model Selector */}
-      <div className="pt-4 border-t border-subtle">
+      {/* Footer Area: Server Status & Model Selector */}
+      <div className="pt-4 border-t border-subtle space-y-2">
+        {/* Live Server Status Pill */}
+        <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-surface-elevated border border-subtle text-[11px]">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              {serverStatus === 'online' && (
+                <>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </>
+              )}
+              {serverStatus === 'waking' && (
+                <>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </>
+              )}
+              {serverStatus === 'checking' && (
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500 animate-pulse"></span>
+              )}
+              {serverStatus === 'offline' && (
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-400"></span>
+              )}
+            </span>
+            <span className="text-secondary-color font-medium">
+              {serverStatus === 'online' && 'AI Engine Live'}
+              {serverStatus === 'waking' && 'Warming up server...'}
+              {serverStatus === 'checking' && 'Connecting...'}
+              {serverStatus === 'offline' && 'Resilient Mode'}
+            </span>
+          </div>
+          <span className="text-[10px] text-muted-color">
+            {serverStatus === 'online' ? 'Ready' : serverStatus === 'waking' ? 'Render' : ''}
+          </span>
+        </div>
+
         {/* Model Selector Card */}
         <div className="relative">
           <button

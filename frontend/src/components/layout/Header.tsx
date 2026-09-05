@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Menu, X, Sun, Moon, Leaf, Plus, RotateCcw, Download, Printer } from 'lucide-react';
 import { PageRoute, ThemeMode, AnalysisResponse } from '../../types';
+import { subscribeServerStatus, ServerWarmupStatus } from '../../services/api';
 
 interface HeaderProps {
   currentPage: PageRoute;
@@ -26,6 +27,12 @@ export const Header: React.FC<HeaderProps> = ({
   onResetAnalysis
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [serverStatus, setServerStatus] = useState<ServerWarmupStatus>('checking');
+
+  useEffect(() => {
+    const unsubscribe = subscribeServerStatus(setServerStatus);
+    return () => unsubscribe();
+  }, []);
 
   const navItems: { id: PageRoute; label: string }[] = [
     { id: 'dashboard', label: 'Dashboard' },
@@ -102,8 +109,20 @@ export const Header: React.FC<HeaderProps> = ({
               <Leaf className="w-5 h-5" />
             </div>
             <div>
-              <span className="font-bold text-base text-primary-color block leading-none">PlantCare</span>
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">AI Plant Health</span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-base text-primary-color block leading-none">PlantCare</span>
+                <span className="relative flex h-1.5 w-1.5">
+                  {serverStatus === 'online' && (
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                  )}
+                  {serverStatus === 'waking' && (
+                    <span className="animate-ping relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
+                  )}
+                </span>
+              </div>
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                {serverStatus === 'waking' ? 'Warming up...' : 'AI Plant Health'}
+              </span>
             </div>
           </div>
 

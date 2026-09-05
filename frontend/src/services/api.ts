@@ -10,9 +10,107 @@ import {
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
+export type ServerWarmupStatus = 'checking' | 'waking' | 'online' | 'offline';
+
+type StatusListener = (status: ServerWarmupStatus) => void;
+const listeners = new Set<StatusListener>();
+let currentServerStatus: ServerWarmupStatus = 'checking';
+
+export function getServerStatus(): ServerWarmupStatus {
+  return currentServerStatus;
+}
+
+export function subscribeServerStatus(listener: StatusListener): () => void {
+  listeners.add(listener);
+  listener(currentServerStatus);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function updateServerStatus(status: ServerWarmupStatus) {
+  if (currentServerStatus !== status) {
+    currentServerStatus = status;
+    listeners.forEach((cb) => cb(status));
+  }
+}
+
+/**
+ * Resilient fetch wrapper that automatically handles Render cold-start wake-up.
+ * If backend returns 502/503/504 or network errors while waking up, it retries
+ * with exponential backoff until the server is ready.
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  maxRetries: number = 5,
+  initialDelayMs: number = 2500
+): Promise<Response> {
+  let lastError: any = null;
+  let delay = initialDelayMs;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+
+      // Render cold-start gateway errors (502/503/504)
+      if ((res.status === 502 || res.status === 503 || res.status === 504) && attempt < maxRetries) {
+        console.info(`[Render Warmup] Backend is waking up (HTTP ${res.status}), retrying in ${delay}ms... (attempt ${attempt + 1}/${maxRetries})`);
+        updateServerStatus('waking');
+        await new Promise((r) => setTimeout(r, delay));
+        delay = Math.min(delay * 1.5, 6000);
+        continue;
+      }
+
+      if (res.ok) {
+        updateServerStatus('online');
+      }
+      return res;
+    } catch (err: any) {
+      lastError = err;
+      if (attempt < maxRetries) {
+        console.info(`[Render Warmup] Waiting for server spin-up, retrying in ${delay}ms... (attempt ${attempt + 1}/${maxRetries})`);
+        updateServerStatus('waking');
+        await new Promise((r) => setTimeout(r, delay));
+        delay = Math.min(delay * 1.5, 6000);
+      }
+    }
+  }
+
+  throw lastError || new Error('Failed to connect to backend after multiple attempts');
+}
+
+let warmupInitiated = false;
+
+/**
+ * Eagerly ping backend as soon as the app loads to trigger Render wake-up.
+ */
+export async function triggerWarmup(): Promise<void> {
+  if (warmupInitiated) return;
+  warmupInitiated = true;
+
+  try {
+    updateServerStatus('checking');
+    const res = await fetchWithRetry(`${API_BASE}/health`, { method: 'GET', cache: 'no-store' }, 8, 3000);
+    if (res.ok) {
+      updateServerStatus('online');
+    } else {
+      updateServerStatus('offline');
+    }
+  } catch (err) {
+    console.warn('[Render Warmup] Background warmup completed with offline fallback:', err);
+    updateServerStatus('offline');
+  }
+}
+
+// Auto-trigger warmup immediately on client load
+if (typeof window !== 'undefined') {
+  triggerWarmup();
+}
+
 export async function fetchHealth(): Promise<{ status: string; calibration_enabled?: boolean; version?: string }> {
   try {
-    const res = await fetch(`${API_BASE}/health`);
+    const res = await fetchWithRetry(`${API_BASE}/health`, { method: 'GET' }, 2, 2000);
     if (!res.ok) throw new Error('Health check failed');
     return await res.json();
   } catch (err) {
@@ -23,7 +121,7 @@ export async function fetchHealth(): Promise<{ status: string; calibration_enabl
 
 export async function fetchModels(): Promise<ModelListResponse> {
   try {
-    const res = await fetch(`${API_BASE}/models`);
+    const res = await fetchWithRetry(`${API_BASE}/models`, { method: 'GET' }, 3, 2000);
     if (!res.ok) throw new Error('Failed to fetch models');
     return await res.json();
   } catch (err) {
@@ -72,10 +170,10 @@ export async function checkImageQuality(file: File): Promise<QualityCheckResult>
   const formData = new FormData();
   formData.append('file', file);
 
-  const res = await fetch(`${API_BASE}/quality-check`, {
+  const res = await fetchWithRetry(`${API_BASE}/quality-check`, {
     method: 'POST',
     body: formData
-  });
+  }, 4, 3000);
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
@@ -97,10 +195,10 @@ export async function analyzePlant(
   formData.append('skip_quality_check', String(skipQualityCheck));
   formData.append('enable_model_comparison', String(enableModelComparison));
 
-  const res = await fetch(`${API_BASE}/analyze`, {
+  const res = await fetchWithRetry(`${API_BASE}/analyze`, {
     method: 'POST',
     body: formData
-  });
+  }, 6, 3000);
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
@@ -114,10 +212,10 @@ export async function compareModels(file: File): Promise<ModelDisagreementResult
   const formData = new FormData();
   formData.append('file', file);
 
-  const res = await fetch(`${API_BASE}/compare-models`, {
+  const res = await fetchWithRetry(`${API_BASE}/compare-models`, {
     method: 'POST',
     body: formData
-  });
+  }, 4, 3000);
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
@@ -136,9 +234,9 @@ export async function analyzeExample(
   if (modelId) url.searchParams.append('model_id', modelId);
   if (enableModelComparison) url.searchParams.append('enable_model_comparison', 'true');
 
-  const res = await fetch(url.toString(), {
+  const res = await fetchWithRetry(url.toString(), {
     method: 'POST'
-  });
+  }, 5, 3000);
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
@@ -159,7 +257,7 @@ export async function fetchDiseases(params?: {
     if (params?.severity && params.severity !== 'all') url.searchParams.append('severity', params.severity);
     if (params?.q) url.searchParams.append('q', params.q);
 
-    const res = await fetch(url.toString());
+    const res = await fetchWithRetry(url.toString(), { method: 'GET' }, 3, 2000);
     if (!res.ok) throw new Error('Failed to fetch disease knowledge base');
     return await res.json();
   } catch (err) {
@@ -169,14 +267,14 @@ export async function fetchDiseases(params?: {
 }
 
 export async function fetchDiseaseDetail(id: string): Promise<DiseaseInfo> {
-  const res = await fetch(`${API_BASE}/diseases/${id}`);
+  const res = await fetchWithRetry(`${API_BASE}/diseases/${id}`, { method: 'GET' }, 3, 2000);
   if (!res.ok) throw new Error(`Disease with ID ${id} not found`);
   return await res.json();
 }
 
 export async function fetchExamples(): Promise<ExampleLeaf[]> {
   try {
-    const res = await fetch(`${API_BASE}/examples`);
+    const res = await fetchWithRetry(`${API_BASE}/examples`, { method: 'GET' }, 3, 2000);
     if (!res.ok) throw new Error('Failed to fetch examples');
     return await res.json();
   } catch (err) {

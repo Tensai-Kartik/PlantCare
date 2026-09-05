@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Loader2, Sparkles } from 'lucide-react';
+import { CheckCircle2, Loader2, Sparkles, Server } from 'lucide-react';
+import { subscribeServerStatus, ServerWarmupStatus } from '../../services/api';
 
 interface AnalyzingScreenProps {
   imagePreviewUrl: string;
@@ -8,6 +9,8 @@ interface AnalyzingScreenProps {
 
 export const AnalyzingScreen: React.FC<AnalyzingScreenProps> = ({ imagePreviewUrl, modelName }) => {
   const [stage, setStage] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [serverStatus, setServerStatus] = useState<ServerWarmupStatus>('checking');
 
   const stages = [
     { label: 'Image received', desc: 'Decoding image buffer & verifying integrity' },
@@ -18,18 +21,30 @@ export const AnalyzingScreen: React.FC<AnalyzingScreenProps> = ({ imagePreviewUr
   ];
 
   useEffect(() => {
+    const unsubscribe = subscribeServerStatus(setServerStatus);
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
     const timer1 = setTimeout(() => setStage(1), 400);
     const timer2 = setTimeout(() => setStage(2), 900);
     const timer3 = setTimeout(() => setStage(3), 1500);
     const timer4 = setTimeout(() => setStage(4), 2200);
+
+    const interval = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
 
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);
       clearTimeout(timer4);
+      clearInterval(interval);
     };
   }, []);
+
+  const isColdStartWarming = elapsedSeconds > 4 || serverStatus === 'waking';
 
   return (
     <div className="w-full max-w-lg mx-auto bg-surface border border-subtle rounded-3xl p-8 custom-shadow text-center space-y-6 animate-in fade-in duration-300">
@@ -60,6 +75,19 @@ export const AnalyzingScreen: React.FC<AnalyzingScreenProps> = ({ imagePreviewUr
           />
         </div>
       </div>
+
+      {/* Cold Start Reassurance Banner */}
+      {isColdStartWarming && (
+        <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 text-amber-800 dark:text-amber-200 text-xs text-left flex items-start gap-2.5 animate-in fade-in duration-300">
+          <Server className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+          <div className="space-y-0.5">
+            <p className="font-semibold">Backend Waking Up ({elapsedSeconds}s)</p>
+            <p className="text-[11px] opacity-90">
+              Render free tier container is spinning up. The diagnosis will complete automatically in a few seconds.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Stage Progression Checklist */}
       <div className="space-y-3 max-w-xs mx-auto text-left py-2">
@@ -94,9 +122,14 @@ export const AnalyzingScreen: React.FC<AnalyzingScreenProps> = ({ imagePreviewUr
       </div>
 
       {/* Bottom Tip */}
-      <div className="pt-4 border-t border-subtle text-xs text-muted-color">
-        <span className="font-semibold text-emerald-600 dark:text-emerald-400">Model:</span>{' '}
-        {modelName} • Computer Vision Transfer Learning
+      <div className="pt-4 border-t border-subtle text-xs text-muted-color flex items-center justify-between">
+        <div>
+          <span className="font-semibold text-emerald-600 dark:text-emerald-400">Model:</span>{' '}
+          {modelName}
+        </div>
+        <div className="text-[11px] text-muted-color">
+          {elapsedSeconds}s elapsed
+        </div>
       </div>
     </div>
   );
