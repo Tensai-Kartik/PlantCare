@@ -181,18 +181,18 @@ class PlantPresenceValidator:
         significant_components = []
 
         for i in range(1, num_labels):
-            area = stats[i, cv2.CC_STAT_AREA]
+            area = float(stats[i, cv2.CC_STAT_AREA])
             if area >= min_comp_area:
                 significant_components.append({
-                    "label": i,
-                    "area": area,
-                    "area_ratio": area / total_area,
-                    "x": stats[i, cv2.CC_STAT_LEFT],
-                    "y": stats[i, cv2.CC_STAT_TOP],
-                    "w": stats[i, cv2.CC_STAT_WIDTH],
-                    "h": stats[i, cv2.CC_STAT_HEIGHT],
-                    "cx": centroids[i][0],
-                    "cy": centroids[i][1]
+                    "label": int(i),
+                    "area": float(area),
+                    "area_ratio": float(area / total_area),
+                    "x": int(stats[i, cv2.CC_STAT_LEFT]),
+                    "y": int(stats[i, cv2.CC_STAT_TOP]),
+                    "w": int(stats[i, cv2.CC_STAT_WIDTH]),
+                    "h": int(stats[i, cv2.CC_STAT_HEIGHT]),
+                    "cx": float(centroids[i][0]),
+                    "cy": float(centroids[i][1])
                 })
 
         # Estimate leaf count
@@ -299,8 +299,10 @@ class PlantPresenceValidator:
         total_line_length = 0.0
         if lines is not None:
             for l in lines:
-                x1, y1, x2, y2 = l[0]
-                total_line_length += np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+                flat = np.array(l).flatten()
+                if len(flat) >= 4:
+                    x1, y1, x2, y2 = float(flat[0]), float(flat[1]), float(flat[2]), float(flat[3])
+                    total_line_length += float(np.sqrt((x2 - x1)**2 + (y2 - y1)**2))
         straight_line_density = float(total_line_length / (img_diag * 10.0)) if img_diag > 0 else 0.0
 
         # ---------------------------------------------------------
