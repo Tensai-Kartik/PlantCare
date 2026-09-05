@@ -4,11 +4,13 @@ FastAPI Application Entrypoint
 """
 
 import os
+import traceback
 from pathlib import Path
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.api.routes import router as api_router
@@ -36,14 +38,30 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS configuration
+# CORS configuration - Allow all origins unconditionally for seamless Vercel cross-origin communication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows Vercel frontend, localhost, and custom domains
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_origin_regex=r".*",
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Global exception handler ensures CORS headers are always returned even on unhandled server errors
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    print(f"[Server Error] Unhandled exception on {request.method} {request.url}: {exc}")
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Server encountered an error: {str(exc)}"},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*"
+        }
+    )
 
 # Ensure static directories exist
 static_dir = Path(__file__).resolve().parent.parent / "static"
