@@ -107,13 +107,24 @@ export const Header: React.FC<HeaderProps> = ({
         {analysisResult && onResetAnalysis ? (
           /* Mobile Analysis Top Bar */
           <div className="w-full flex items-center justify-between gap-2">
-            <button
-              onClick={onResetAnalysis}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-surface-elevated text-xs font-semibold text-secondary-color hover:text-primary-color border border-subtle active:scale-95 transition-all cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Back</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Hamburger Button on Left */}
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="p-2 rounded-xl bg-surface-elevated text-primary-color border border-subtle active:scale-95 transition-all cursor-pointer"
+                aria-label="Open navigation menu"
+              >
+                <Menu className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={onResetAnalysis}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-surface-elevated text-xs font-semibold text-secondary-color hover:text-primary-color border border-subtle active:scale-95 transition-all cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Back</span>
+              </button>
+            </div>
 
             <div className="flex items-center gap-1.5">
               <button
@@ -155,50 +166,53 @@ export const Header: React.FC<HeaderProps> = ({
                   <Printer className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 </button>
               )}
-
-              {/* Hamburger Button */}
+            </div>
+          </div>
+        ) : (
+          /* Standard Mobile Brand + Actions Header with Hamburger on Left */
+          <>
+            <div className="flex items-center gap-2.5">
+              {/* Hamburger Button on Left */}
               <button
                 onClick={() => setMobileMenuOpen(true)}
-                className="p-2 rounded-xl bg-surface-elevated text-primary-color border border-subtle active:scale-95 transition-all cursor-pointer ml-1"
+                className="p-2 rounded-xl bg-surface-elevated text-primary-color border border-subtle active:scale-95 transition-all cursor-pointer shrink-0"
                 aria-label="Open navigation menu"
               >
                 <Menu className="w-4 h-4" />
               </button>
-            </div>
-          </div>
-        ) : (
-          /* Standard Mobile Brand + Actions Header */
-          <>
-            <div 
-              onClick={() => handleNavClick('dashboard')}
-              className="flex items-center gap-2.5 cursor-pointer select-none"
-            >
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-700 to-emerald-500 text-white flex items-center justify-center shadow-xs">
-                <Leaf className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold text-sm sm:text-base text-primary-color block leading-none">
-                    PlantCare
-                  </span>
-                  <span className="relative flex h-2 w-2">
-                    {serverStatus === 'online' && (
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    )}
-                    {serverStatus === 'waking' && (
-                      <span className="animate-ping relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                    )}
-                    {serverStatus === 'checking' && (
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500 animate-pulse"></span>
-                    )}
-                    {serverStatus === 'offline' && (
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-400"></span>
-                    )}
+
+              {/* Logo & Name PlantCare AI Plant Health */}
+              <div 
+                onClick={() => handleNavClick('dashboard')}
+                className="flex items-center gap-2 cursor-pointer select-none"
+              >
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-emerald-700 to-emerald-500 text-white flex items-center justify-center shadow-xs shrink-0">
+                  <Leaf className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-extrabold text-xs sm:text-sm text-primary-color block leading-none">
+                      PlantCare
+                    </span>
+                    <span className="relative flex h-1.5 w-1.5">
+                      {serverStatus === 'online' && (
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                      )}
+                      {serverStatus === 'waking' && (
+                        <span className="animate-ping relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
+                      )}
+                      {serverStatus === 'checking' && (
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500 animate-pulse"></span>
+                      )}
+                      {serverStatus === 'offline' && (
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-zinc-400"></span>
+                      )}
+                    </span>
+                  </div>
+                  <span className="text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-400 font-medium leading-none block mt-0.5">
+                    {serverStatus === 'waking' ? 'Warming up...' : 'AI Plant Health'}
                   </span>
                 </div>
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium leading-none block mt-0.5">
-                  {serverStatus === 'waking' ? 'Warming up...' : 'AI Plant Health'}
-                </span>
               </div>
             </div>
 
@@ -209,7 +223,7 @@ export const Header: React.FC<HeaderProps> = ({
                     onNewAnalysis();
                     setMobileMenuOpen(false);
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs active:scale-95 transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs active:scale-95 transition-all cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Analyze</span>
@@ -223,15 +237,6 @@ export const Header: React.FC<HeaderProps> = ({
                 aria-label="Toggle theme"
               >
                 {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-              </button>
-
-              {/* Hamburger Button */}
-              <button
-                onClick={() => setMobileMenuOpen(true)}
-                className="p-2 rounded-xl bg-surface-elevated text-primary-color border border-subtle active:scale-95 transition-all cursor-pointer"
-                aria-label="Open navigation menu"
-              >
-                <Menu className="w-5 h-5" />
               </button>
             </div>
           </>
