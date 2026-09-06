@@ -76,24 +76,28 @@ class GradCAMService:
             else:
                 cam = np.zeros_like(cam)
 
-            # Resize CAM to match original image size
-            orig_w, orig_h = raw_pil_image.size
-            cam_resized = cv2.resize(cam, (orig_w, orig_h))
+            # Optimize display resolution for sub-millisecond blending and fast network delivery
+            disp_img = raw_pil_image.copy()
+            if max(disp_img.size) > 512:
+                disp_img.thumbnail((512, 512), Image.Resampling.BILINEAR)
+
+            disp_w, disp_h = disp_img.size
+            cam_resized = cv2.resize(cam, (disp_w, disp_h))
 
             # Convert to 8-bit heatmap with JET colormap
             heatmap = np.uint8(255 * cam_resized)
             heatmap_colored = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
             heatmap_colored = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB)
 
-            # Overlay onto original image
-            orig_np = np.array(raw_pil_image)
+            # Overlay onto resized display image
+            orig_np = np.array(disp_img)
             alpha = 0.45
             overlay = np.uint8(orig_np * (1.0 - alpha) + heatmap_colored * alpha)
 
-            # Encode as base64 JPEG
+            # Encode as compact base64 JPEG
             result_img = Image.fromarray(overlay)
             buf = BytesIO()
-            result_img.save(buf, format="JPEG", quality=90)
+            result_img.save(buf, format="JPEG", quality=80, optimize=True)
             base64_str = base64.b64encode(buf.getvalue()).decode("utf-8")
             return f"data:image/jpeg;base64,{base64_str}"
 
