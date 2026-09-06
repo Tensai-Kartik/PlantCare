@@ -80,7 +80,7 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 app.include_router(api_router, prefix="/api")
 app.include_router(api_router, prefix="")  # Allow root level /health as well
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def root():
     return {
         "app": settings.PROJECT_NAME,

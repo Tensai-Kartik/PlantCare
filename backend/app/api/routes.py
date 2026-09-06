@@ -108,7 +108,7 @@ def validate_image_payload(content: bytes) -> bytes:
             detail=f"Unable to decode image format. Please upload a valid JPG, PNG, or WEBP photo. ({str(e)})"
         )
 
-@router.get("/health", summary="Health Check")
+@router.api_route("/health", methods=["GET", "HEAD"], summary="Health Check")
 async def health_check():
     return {
         "status": "healthy",
