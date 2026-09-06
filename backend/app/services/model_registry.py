@@ -299,6 +299,7 @@ class ModelRegistry:
                     confidence_percent=round(top_p_val * 100.0, 1)
                 ))
                 preds_list.append((c_id, top_p_val))
+                del tensor, logits, probs
             except Exception as e:
                 print(f"Model comparison error for {m_id}: {e}")
 

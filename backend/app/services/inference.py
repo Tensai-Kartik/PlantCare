@@ -213,10 +213,11 @@ class InferenceService:
 
         # Stage 6: Simultaneous Multi-Model Ensemble Comparison
         comparison_result = None
-        try:
-            comparison_result = model_registry.run_model_comparison(pil_image)
-        except Exception as e:
-            print(f"Multi-model comparison exception: {e}")
+        if enable_model_comparison:
+            try:
+                comparison_result = model_registry.run_model_comparison(pil_image)
+            except Exception as e:
+                print(f"Multi-model comparison exception: {e}")
 
         # Stage 7: Simultaneous Gemini Multimodal AI Vision Cross-Verification
         gemini_start = time.perf_counter()

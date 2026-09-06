@@ -7,6 +7,11 @@ import os
 import traceback
 from pathlib import Path
 from contextlib import asynccontextmanager
+import torch
+
+# Optimize CPU threading and memory overhead for cloud containers
+torch.set_num_threads(1)
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
