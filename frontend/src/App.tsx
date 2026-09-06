@@ -20,6 +20,7 @@ import {
   AnalysisResponse 
 } from './types';
 import { 
+  triggerWarmup,
   fetchModels, 
   fetchExamples, 
   checkImageQuality, 
@@ -79,6 +80,9 @@ export function App() {
   }, [theme]);
 
   useEffect(() => {
+    // Immediately ping Render backend container as soon as the app is opened
+    triggerWarmup();
+
     // Load models and examples
     fetchModels().then((res) => {
       if (res.models && res.models.length > 0) {

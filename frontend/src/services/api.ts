@@ -83,7 +83,7 @@ async function fetchWithRetry(
 let warmupInitiated = false;
 
 /**
- * Eagerly ping backend as soon as the app loads to trigger Render wake-up.
+ * Eagerly ping backend as soon as the app loads to trigger Render container spin-up.
  */
 export async function triggerWarmup(): Promise<void> {
   if (warmupInitiated) return;
@@ -91,7 +91,10 @@ export async function triggerWarmup(): Promise<void> {
 
   try {
     updateServerStatus('checking');
-    const res = await fetchWithRetry(`${API_BASE}/health`, { method: 'GET', cache: 'no-store' }, 8, 3000);
+    // Immediate early ping to trigger Render server wake-up as quickly as possible
+    fetch(`${API_BASE}/health`, { method: 'GET', cache: 'no-store', mode: 'cors' }).catch(() => {});
+
+    const res = await fetchWithRetry(`${API_BASE}/health`, { method: 'GET', cache: 'no-store' }, 8, 2500);
     if (res.ok) {
       updateServerStatus('online');
     } else {

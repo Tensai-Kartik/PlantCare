@@ -26,8 +26,8 @@ class Settings(BaseSettings):
 
     # LLM Settings
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
-    GEMINI_FALLBACK_MODELS: str = os.getenv("GEMINI_FALLBACK_MODELS", "gemini-flash-latest,gemini-3.6-flash,gemini-3.7-flash,gemini-flash-lite-latest")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+    GEMINI_FALLBACK_MODELS: str = os.getenv("GEMINI_FALLBACK_MODELS", "gemini-1.5-flash,gemini-2.0-flash,gemini-1.5-flash-8b")
 
     # Multi-Model Consensus Default
     ENABLE_MULTI_MODEL_CONSENSUS: bool = True

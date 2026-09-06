@@ -83,7 +83,7 @@ export const AnalyzingScreen: React.FC<AnalyzingScreenProps> = ({ imagePreviewUr
           <div className="space-y-0.5">
             <p className="font-semibold">Backend Waking Up ({elapsedSeconds}s)</p>
             <p className="text-[11px] opacity-90">
-              Render free tier container is spinning up. The diagnosis will complete automatically in a few seconds.
+              Render container is spinning up. The diagnosis will complete automatically in a few seconds.
             </p>
           </div>
         </div>

@@ -20,7 +20,7 @@ class GradCAMService:
         self,
         model: torch.nn.Module,
         target_layer: torch.nn.Module,
-        input_tensor: torch.save,
+        input_tensor: torch.Tensor,
         raw_pil_image: Image.Image,
         target_class_idx: Optional[int] = None
     ) -> Optional[str]:
