@@ -219,13 +219,16 @@ export function App() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Header */}
+        {/* Mobile Header with Burger Navigation Menu */}
         <Header
           currentPage={currentPage}
           onNavigate={handleNavigate}
           theme={theme}
           onToggleTheme={handleToggleTheme}
           onNewAnalysis={() => handleNavigate('analyze')}
+          selectedModel={selectedModel}
+          availableModels={availableModels}
+          onSelectModel={setSelectedModel}
           analysisResult={directAnalysisStep === 'result' ? directResult : null}
           onExportJSON={() => directResult && exportAnalysisAsJSON(directResult)}
           onDownloadReport={() => directResult && printDiagnosticReport(directResult)}
@@ -233,10 +236,10 @@ export function App() {
         />
 
         {/* Desktop Top Header Bar */}
-        <header className="hidden md:flex items-center justify-between px-8 py-3.5 border-b border-subtle bg-surface sticky top-0 z-30 select-none">
+        <header className="hidden md:flex items-center justify-between px-6 lg:px-8 py-3.5 border-b border-subtle bg-surface/95 backdrop-blur-md sticky top-0 z-30 select-none transition-colors">
           {directAnalysisStep === 'result' && directResult ? (
             /* Post-Analysis Top Bar */
-            <>
+            <div className="w-full flex flex-wrap items-center justify-between gap-3">
               <button
                 onClick={handleResetDirect}
                 className="flex items-center gap-2 text-xs font-semibold text-secondary-color hover:text-primary-color transition-colors cursor-pointer"
@@ -245,7 +248,7 @@ export function App() {
                 <span>← Back to Dashboard</span>
               </button>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={handleResetDirect}
                   className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs shadow-emerald-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
@@ -281,7 +284,7 @@ export function App() {
                   <span>Download Report</span>
                 </button>
               </div>
-            </>
+            </div>
           ) : (
             /* Standard Pages Top Bar */
             <>
