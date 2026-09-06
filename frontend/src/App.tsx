@@ -204,13 +204,11 @@ export function App() {
 
   return (
     <div className="min-h-screen flex bg-primary text-primary-color font-sans antialiased">
-      {/* Persistent Desktop Sidebar */}
-      <div className="hidden md:block">
+      {/* Fixed Persistent Desktop Sidebar */}
+      <div className="hidden md:block shrink-0 sticky top-0 h-screen z-30">
         <Sidebar
           currentPage={currentPage}
           onNavigate={handleNavigate}
-          theme={theme}
-          onToggleTheme={handleToggleTheme}
           selectedModel={selectedModel}
           availableModels={availableModels}
           onSelectModel={setSelectedModel}

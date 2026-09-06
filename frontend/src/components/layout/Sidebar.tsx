@@ -7,21 +7,16 @@ import {
   Stethoscope, 
   Sprout, 
   Cpu, 
-  Leaf,
-  CheckCircle2,
-  ChevronDown,
-  Moon,
-  Sun,
-  Sparkles
+  Leaf, 
+  CheckCircle2, 
+  ChevronDown
 } from 'lucide-react';
-import { PageRoute, ThemeMode, ModelMetadata } from '../../types';
+import { PageRoute, ModelMetadata } from '../../types';
 import { subscribeServerStatus, ServerWarmupStatus } from '../../services/api';
 
 interface SidebarProps {
   currentPage: PageRoute;
   onNavigate: (page: PageRoute) => void;
-  theme: ThemeMode;
-  onToggleTheme: () => void;
   selectedModel: string;
   availableModels: ModelMetadata[];
   onSelectModel: (modelId: string) => void;
@@ -30,8 +25,6 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   currentPage,
   onNavigate,
-  theme,
-  onToggleTheme,
   selectedModel,
   availableModels,
   onSelectModel
@@ -56,8 +49,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const currentModelObj = availableModels.find(m => m.id === selectedModel) || availableModels[0];
 
   return (
-    <aside className="w-64 lg:w-72 min-h-screen bg-surface border-r border-subtle flex flex-col justify-between p-4 lg:p-5 select-none shrink-0 transition-colors duration-200">
-      {/* Top Brand & Navigation */}
+    <aside className="w-64 lg:w-72 h-screen sticky top-0 bg-surface border-r border-subtle flex flex-col justify-between p-4 lg:p-5 select-none shrink-0 transition-colors duration-200 overflow-y-auto z-30">
+      {/* Top Brand & Navigation Links */}
       <div>
         {/* Brand Header */}
         <div 
@@ -118,7 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
       </div>
 
-      {/* Footer Area: Server Status, Model Selector & Theme Toggle */}
+      {/* Footer Area: Live Server Connection Status & Model Selector (No dark/light toggle) */}
       <div className="pt-4 border-t border-subtle space-y-2.5">
         {/* Live Server Status Pill */}
         <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-surface-elevated border border-subtle text-[11px]">
@@ -210,24 +203,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           )}
         </div>
-
-        {/* Bottom Theme & Mode Toggle */}
-        <button
-          onClick={onToggleTheme}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-surface-elevated hover:bg-surface border border-subtle text-xs text-secondary-color hover:text-primary-color transition-colors cursor-pointer"
-        >
-          <div className="flex items-center gap-2">
-            {theme === 'light' ? (
-              <Moon className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
-            ) : (
-              <Sun className="w-3.5 h-3.5 text-amber-500" />
-            )}
-            <span className="font-medium">{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
-          </div>
-          <span className="text-[10px] text-muted-color font-medium uppercase tracking-wider">
-            {theme}
-          </span>
-        </button>
       </div>
     </aside>
   );

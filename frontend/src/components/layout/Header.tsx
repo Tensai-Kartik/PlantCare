@@ -388,18 +388,6 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               )}
 
-              {/* Theme Toggle */}
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-surface-elevated border border-subtle">
-                <span className="text-xs font-medium text-secondary-color">Theme Appearance</span>
-                <button
-                  onClick={onToggleTheme}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-surface border border-subtle text-xs font-semibold text-primary-color shadow-xs active:scale-95 transition-all"
-                >
-                  {theme === 'light' ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5 text-amber-500" />}
-                  <span>{theme === 'light' ? 'Dark' : 'Light'}</span>
-                </button>
-              </div>
-
               {/* Quick Analyze CTA */}
               <button
                 onClick={() => {
