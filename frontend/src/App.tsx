@@ -53,6 +53,15 @@ export function App() {
       weighted_f1: 0.7135,
       latency_ms: 1.91,
       is_default: false
+    },
+    {
+      id: 'resnet18',
+      name: 'ResNet-18',
+      architecture: 'resnet18',
+      accuracy: 92.86,
+      weighted_f1: 0.9120,
+      latency_ms: 11.45,
+      is_default: false
     }
   ]);
   const [selectedModel, setSelectedModel] = useState<string>('efficientnet_b0');

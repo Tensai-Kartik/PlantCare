@@ -163,6 +163,22 @@ export async function fetchModels(): Promise<ModelListResponse> {
           weighted_f1: 0.7135,
           latency_ms: 1.91,
           is_default: false
+        },
+        {
+          id: 'resnet18',
+          name: 'ResNet-18',
+          architecture: 'resnet18',
+          version: '1.2.0',
+          dataset: 'PlantVillage + FieldAug',
+          dataset_version: '2.0',
+          class_count: 21,
+          training_date: '2026-08-26',
+          temperature: 1.10,
+          ece: 0.035,
+          accuracy: 92.86,
+          weighted_f1: 0.9120,
+          latency_ms: 11.45,
+          is_default: false
         }
       ]
     };
